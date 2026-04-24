@@ -37,7 +37,7 @@ SAMPLE_PERSONA = Persona(
 )
 
 SAMPLE_MATCH = AgencyMatch(
-    id="agency-1",
+    agency_id="agency-1",
     name="Studio Quiet",
     blurb="Independent brand studio for considered makers.",
     specialty_tags=["brand identity", "packaging"],

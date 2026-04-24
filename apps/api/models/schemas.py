@@ -1,23 +1,29 @@
-from __future__ import annotations
-
-from datetime import datetime
-from typing import Literal, Optional
-
 from pydantic import BaseModel, Field
+from typing import Literal, Optional
+from datetime import datetime
 
-JobStatus = Literal[
-    "queued",
-    "scraping",
-    "synthesizing",
-    "generating",
-    "matching",
-    "generating_pdf",
-    "done",
-    "error",
-]
 
-Platform = Literal["instagram", "tiktok", "youtube"]
-PaletteRole = Literal["primary", "secondary", "accent", "bg", "fg"]
+class CreateJobRequest(BaseModel):
+    handle: str
+    product_idea: str
+    platform: Literal["instagram"] = "instagram"
+
+
+class Post(BaseModel):
+    caption: str
+    hashtags: list[str]
+    like_count: int
+    comment_count: int
+    posted_at: str
+    image_url: Optional[str] = None
+
+
+class RawAudience(BaseModel):
+    bio: str
+    follower_count: int
+    posts: list[Post]
+    top_hashtags: list[str]
+    top_mentioned_accounts: list[str]
 
 
 class Persona(BaseModel):
@@ -32,34 +38,54 @@ class Persona(BaseModel):
     summary: str
 
 
-class PaletteColor(BaseModel):
+class AgencyMatch(BaseModel):
+    agency_id: str
+    name: str
+    blurb: str
+    specialty_tags: list[str]
+    match_score: float
+    why: str
+    # Additive fields used by Person 4's matching fixtures + pitch deck.
+    aesthetic_tags: list[str] = Field(default_factory=list)
+    notable_clients: list[str] = Field(default_factory=list)
+    min_budget: str = ""
+    website: str = ""
+
+
+PaletteRole = Literal["primary", "secondary", "accent", "bg", "fg"]
+
+
+class Color(BaseModel):
     hex: str
     role: PaletteRole
     name: str
 
 
-Color = PaletteColor
+# Alias so Person 4's services that import PaletteColor keep compiling.
+PaletteColor = Color
 
 
-class TypographyFace(BaseModel):
+class FontSpec(BaseModel):
     family: str
     google_url: str
+    # Additive: weights used by mfg spec + brand guide font loading.
     weights: list[int] = Field(default_factory=lambda: [400, 700])
 
 
-FontSpec = TypographyFace
+# Alias for Person 4's services that import TypographyFace.
+TypographyFace = FontSpec
 
 
 class Typography(BaseModel):
-    display: TypographyFace
-    body: TypographyFace
+    display: FontSpec
+    body: FontSpec
 
 
 class Voice(BaseModel):
-    tone: str = ""
-    do: list[str] = Field(default_factory=list)
-    dont: list[str] = Field(default_factory=list)
-    examples: list[str] = Field(default_factory=list)
+    tone: str
+    do: list[str]
+    dont: list[str]
+    examples: list[str]
 
 
 class Mockup(BaseModel):
@@ -68,6 +94,7 @@ class Mockup(BaseModel):
 
 
 class LogoVariants(BaseModel):
+    """Person 3's logo set — primary + monos + on-brand + avatar."""
     primary: str
     mono_dark: str
     mono_light: str
@@ -76,42 +103,32 @@ class LogoVariants(BaseModel):
 
 
 class SocialAsset(BaseModel):
+    """Single social-media-sized image (post or story)."""
     label: str
     url: str
-    platform: Platform = "instagram"
+    platform: Literal["instagram", "tiktok", "youtube"] = "instagram"
     format: Literal["post", "story"] = "post"
 
 
 class BrandAssets(BaseModel):
     brand_name: str
-    tagline: str = ""
-    logo_url: str = ""
+    tagline: str
+    logo_url: str
+    palette: list[Color]
+    typography: Typography
+    voice: Voice
+    mockups: list[Mockup]
+    # Additive fields (Person 4 — populated by the brand orchestrator).
     logo: Optional[LogoVariants] = None
-    palette: list[PaletteColor] = Field(default_factory=list)
-    typography: Optional[Typography] = None
-    voice: Optional[Voice] = None
-    mockups: list[Mockup] = Field(default_factory=list)
     social_kit: list[SocialAsset] = Field(default_factory=list)
-
-
-class AgencyMatch(BaseModel):
-    id: str
-    name: str
-    blurb: str
-    specialty_tags: list[str]
-    aesthetic_tags: list[str]
-    notable_clients: list[str]
-    min_budget: str
-    website: str
-    match_score: float
-    why: str
 
 
 class BrandResult(BaseModel):
     persona: Persona
     brand_assets: BrandAssets
-    agency_matches: list[AgencyMatch] = Field(default_factory=list)
-    brand_guide_pdf_url: Optional[str] = None
+    agency_matches: list[AgencyMatch]
+    brand_guide_pdf_url: str
+    # Additive fields (Person 4 — every optional artifact).
     pitch_deck_pdf_url: Optional[str] = None
     web_guide_url: Optional[str] = None
     mfg_spec_sheet_pdf_url: Optional[str] = None
@@ -119,38 +136,16 @@ class BrandResult(BaseModel):
     error_message: Optional[str] = None
 
 
-class CreateJobRequest(BaseModel):
-    handle: str
-    product_idea: str
-    platform: Platform = "instagram"
-
-
-class CreateJobResponse(BaseModel):
-    job_id: str
-
-
 class Job(BaseModel):
     id: str
     handle: str
     product_idea: str
-    platform: Platform
-    status: JobStatus
+    platform: str
+    status: Literal[
+        "queued", "scraping", "synthesizing",
+        "generating", "matching", "exporting",
+        "done", "error"
+    ]
     created_at: datetime
+    error_message: Optional[str] = None
     result: Optional[BrandResult] = None
-
-
-class RawAudiencePost(BaseModel):
-    caption: str = ""
-    hashtags: list[str] = Field(default_factory=list)
-    like_count: int = 0
-    comment_count: int = 0
-    posted_at: Optional[datetime] = None
-    image_url: Optional[str] = None
-
-
-class RawAudience(BaseModel):
-    bio: str = ""
-    follower_count: int = 0
-    posts: list[RawAudiencePost] = Field(default_factory=list)
-    top_hashtags: list[str] = Field(default_factory=list)
-    top_mentioned_accounts: list[str] = Field(default_factory=list)

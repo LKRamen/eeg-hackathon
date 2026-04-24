@@ -8,7 +8,7 @@ import pytest
 
 from apps.api.models.schemas import BrandResult, Persona
 from apps.api.services._openai_client import get_openai_client
-from apps.api.services.pipeline import run_pipeline
+from apps.api.services._brand_orchestrator import run_pipeline
 
 
 SAMPLE_PERSONA = Persona(
@@ -35,7 +35,7 @@ async def test_run_pipeline_returns_populated_result() -> None:
     assert len(result.agency_matches) >= 1
 
     # Brand guide is the only required artifact.
-    assert result.brand_guide_pdf_url is not None
+    assert result.brand_guide_pdf_url
     assert urlparse(result.brand_guide_pdf_url).scheme in ("file", "http", "https")
 
     # Optional artifacts — should populate when their builds succeed.

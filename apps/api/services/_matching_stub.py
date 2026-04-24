@@ -11,7 +11,7 @@ from apps.api.models.schemas import AgencyMatch, Persona
 
 _FIXTURES: tuple[AgencyMatch, ...] = (
     AgencyMatch(
-        id="agency-quiet",
+        agency_id="agency-quiet",
         name="Studio Quiet",
         blurb="Independent brand studio for considered makers.",
         specialty_tags=["brand identity", "packaging", "art direction"],
@@ -23,7 +23,7 @@ _FIXTURES: tuple[AgencyMatch, ...] = (
         why="Aesthetic overlap on brutalist + minimal; both work in a quiet, considered register.",
     ),
     AgencyMatch(
-        id="agency-bright",
+        agency_id="agency-bright",
         name="Bright Office",
         blurb="A small studio that makes brands feel like a single voice.",
         specialty_tags=["brand identity", "web", "type"],
@@ -35,7 +35,7 @@ _FIXTURES: tuple[AgencyMatch, ...] = (
         why="Strong typography practice; aligns with persona voice traits.",
     ),
     AgencyMatch(
-        id="agency-monolith",
+        agency_id="agency-monolith",
         name="Monolith",
         blurb="Identity studio working across print + product.",
         specialty_tags=["packaging", "industrial design", "identity"],
