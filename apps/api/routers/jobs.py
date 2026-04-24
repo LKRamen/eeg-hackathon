@@ -4,6 +4,7 @@ from fastapi import APIRouter, BackgroundTasks, HTTPException
 
 from ..models.schemas import CreateJobRequest, Job
 from ..services import jobs_db
+from ..services.pipeline import run_pipeline
 
 router = APIRouter(prefix="/jobs", tags=["jobs"])
 
@@ -16,7 +17,7 @@ async def create_job(body: CreateJobRequest, background_tasks: BackgroundTasks):
         platform=body.platform,
         user_id="anon",
     )
-    # background_tasks.add_task(run_pipeline, job_id)  wired in Task 3
+    background_tasks.add_task(run_pipeline, job_id)
     return {"job_id": job_id}
 
 
