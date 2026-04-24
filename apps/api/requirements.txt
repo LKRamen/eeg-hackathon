@@ -8,6 +8,8 @@ supabase==2.8.1
 openai==1.51.2
 replicate==0.34.1
 apify-client==1.8.1
+instaloader==4.13.1
+twscrape==0.15.0
 weasyprint==62.3
 jinja2==3.1.4
 numpy==2.1.2

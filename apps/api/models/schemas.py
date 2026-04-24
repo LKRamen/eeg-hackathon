@@ -16,7 +16,7 @@ JobStatus = Literal[
     "error",
 ]
 
-Platform = Literal["instagram", "tiktok", "youtube"]
+Platform = Literal["instagram", "tiktok", "youtube", "x"]
 PaletteRole = Literal["primary", "secondary", "accent", "bg", "fg"]
 
 
