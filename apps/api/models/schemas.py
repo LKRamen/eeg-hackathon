@@ -56,8 +56,22 @@ class Voice(BaseModel):
 
 
 class Mockup(BaseModel):
+    label: Literal["tee", "tote", "hat", "sticker"]
+    url: str
+
+
+class LogoVariants(BaseModel):
+    primary: str
+    mono_dark: str
+    mono_light: str
+    on_brand: str
+    avatar: str
+
+
+class SocialAsset(BaseModel):
     label: str
     url: str
+    format: Literal["ig_square", "ig_story"]
 
 
 class BrandAssets(BaseModel):

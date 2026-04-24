@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(pip show *)",
+      "Bash(pip install *)",
+      "Bash(python _dev/_tmp_roylee_test.py)",
+      "Bash(python -X utf8 _dev/_tmp_roylee_test.py)",
+      "Bash(python -X utf8 _dev/_tmp_gtm_test.py)"
+    ]
+  }
+}
