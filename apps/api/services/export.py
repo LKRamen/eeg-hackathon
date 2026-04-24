@@ -13,6 +13,7 @@ from . import _storage as storage
 from ._export_deck import build_pitch_deck, render_pitch_deck_html
 from ._export_mfg import build_mfg_spec, render_mfg_spec_html
 from ._export_web import build_web_guide, render_web_guide_html
+from ._export_zip import build_brand_kit_zip
 from ._palette import contrast_ratio
 
 __all__ = [
@@ -20,6 +21,7 @@ __all__ = [
     "build_pitch_deck",
     "build_web_guide",
     "build_mfg_spec",
+    "build_brand_kit_zip",
     "render_brand_guide_html",
     "render_pitch_deck_html",
     "render_web_guide_html",
