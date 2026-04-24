@@ -7,7 +7,7 @@ import re
 from collections import Counter
 from pathlib import Path
 
-from models.schemas import RawAudience, RawAudiencePost
+from models.schemas import NetworkProfile, RawAudience, RawAudiencePost
 
 logger = logging.getLogger(__name__)
 
@@ -85,47 +85,129 @@ async def scrape(handle: str, platform: str = "instagram") -> RawAudience:
 
 
 # ---------------------------------------------------------------------------
-# Instagram — instaloader (free, no API key)
+# Instagram — direct web API with browser cookies
+# Bypasses instaloader's broken graphql endpoint entirely.
 # ---------------------------------------------------------------------------
 
-async def _scrape_instagram(handle: str) -> RawAudience:
-    import instaloader  # type: ignore
+# Instagram's internal web app ID — required header for their JSON API
+_IG_APP_ID = "936619743392459"
 
-    L = instaloader.Instaloader(
-        download_pictures=False,
-        download_videos=False,
-        download_video_thumbnails=False,
-        download_geotags=False,
-        download_comments=False,
-        save_metadata=False,
-        quiet=True,
-    )
 
+def _get_ig_cookies() -> dict:
+    """Pull Instagram session cookies from Chrome or Firefox."""
     try:
-        profile = instaloader.Profile.from_username(L.context, handle)
-    except instaloader.exceptions.ProfileNotExistsException:
-        raise ScraperError(f"Instagram profile @{handle} does not exist.")
-    except instaloader.exceptions.PrivateProfileNotFollowedException:
-        raise ScraperError(f"Instagram profile @{handle} is private.")
+        import browser_cookie3  # type: ignore
+        for loader in (browser_cookie3.chrome, browser_cookie3.firefox):
+            try:
+                cookies = loader(domain_name=".instagram.com")
+                cookie_dict = {c.name: c.value for c in cookies}
+                if "sessionid" in cookie_dict:
+                    return cookie_dict
+            except Exception:
+                continue
+    except ImportError:
+        pass
+    return {}
 
+
+def _ig_request(path: str, cookies: dict, params: dict | None = None) -> dict:
+    """Make an authenticated request to Instagram's web API."""
+    import requests  # type: ignore
+
+    session = requests.Session()
+    session.cookies.update(cookies)
+    session.headers.update({
+        "x-ig-app-id": _IG_APP_ID,
+        "x-csrftoken": cookies.get("csrftoken", ""),
+        "User-Agent": (
+            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+            "AppleWebKit/537.36 (KHTML, like Gecko) "
+            "Chrome/124.0.0.0 Safari/537.36"
+        ),
+        "Referer": "https://www.instagram.com/",
+        "Accept": "*/*",
+    })
+    url = f"https://www.instagram.com/api/v1{path}"
+    r = session.get(url, params=params, timeout=15)
+    r.raise_for_status()
+    return r.json()
+
+
+async def _scrape_instagram(handle: str) -> RawAudience:
+    cookies = _get_ig_cookies()
+    if not cookies:
+        raise RuntimeError("No Instagram browser session found — log into Instagram in Chrome first")
+
+    # Fetch profile
+    try:
+        data = _ig_request(
+            "/users/web_profile_info/",
+            cookies,
+            params={"username": handle},
+        )
+    except Exception as exc:
+        raise RuntimeError(f"Instagram profile fetch failed: {exc}") from exc
+
+    user = data.get("data", {}).get("user")
+    if not user:
+        raise ScraperError(f"Instagram profile @{handle} not found or is private.")
+
+    user_id = user["id"]
+    bio = user.get("biography", "")
+    follower_count = user.get("edge_followed_by", {}).get("count", 0)
+
+    # Fetch recent posts via feed endpoint
     raw_posts = []
-    for post in profile.get_posts():
-        raw_posts.append({
-            "caption": post.caption or "",
-            "like_count": post.likes,
-            "comment_count": post.comments,
-            "posted_at": post.date_utc.isoformat(),
-            "image_url": post.url,
-        })
-        if len(raw_posts) >= 20:
-            break
+    try:
+        feed = _ig_request(f"/feed/user/{user_id}/", cookies, params={"count": 20})
+        for item in feed.get("items", [])[:20]:
+            caption = ""
+            cap_node = item.get("caption")
+            if isinstance(cap_node, dict):
+                caption = cap_node.get("text", "")
+            raw_posts.append({
+                "caption": caption,
+                "like_count": item.get("like_count", 0),
+                "comment_count": item.get("comment_count", 0),
+                "posted_at": str(item.get("taken_at", "")),
+                "image_url": item.get("image_versions2", {}).get("candidates", [{}])[0].get("url", ""),
+            })
+    except Exception as exc:
+        logger.warning("Could not fetch Instagram posts (%s)", exc)
+
+    # Fetch followers sample
+    followers: list[dict] = []
+    try:
+        f_data = _ig_request(f"/friendships/{user_id}/followers/", cookies, params={"count": 100})
+        for u in f_data.get("users", []):
+            followers.append({
+                "username": u.get("username", ""),
+                "bio": u.get("biography", "") or "",
+                "follower_count": u.get("follower_count", 0),
+            })
+    except Exception as exc:
+        logger.warning("Could not fetch Instagram followers (%s)", exc)
+
+    # Fetch following sample
+    following: list[dict] = []
+    try:
+        fo_data = _ig_request(f"/friendships/{user_id}/following/", cookies, params={"count": 100})
+        for u in fo_data.get("users", []):
+            following.append({
+                "username": u.get("username", ""),
+                "bio": u.get("biography", "") or "",
+                "follower_count": u.get("follower_count", 0),
+            })
+            if len(following) >= 100:
+                break
+    except Exception as exc:
+        logger.warning("Could not fetch Instagram following (%s)", exc)
 
     raw = {
-        "profile": {
-            "biography": profile.biography or "",
-            "followersCount": profile.followers,
-        },
+        "profile": {"biography": bio, "followersCount": follower_count},
         "posts": raw_posts,
+        "followers": followers,
+        "following": following,
     }
     _save_cache(handle, "instagram", raw)
     return _build_audience(raw, "instagram")
@@ -170,10 +252,16 @@ async def _scrape_x(handle: str) -> RawAudience:
         await api.pool.add_account(x_user, x_pass, x_email, x_email_pass)
         await api.pool.login_all()
 
+    # Check at least one account logged in successfully
+    accounts = await api.pool.get_all()
+    active = [a for a in accounts if a.active]
+    if not active:
+        raise RuntimeError("No active X accounts — login failed, using fixture fallback")
+
     # Fetch user profile
     user = await api.user_by_login(handle)
     if user is None:
-        raise ScraperError(f"X profile @{handle} not found.")
+        raise RuntimeError(f"X profile @{handle} not found or login blocked — using fixture fallback")
 
     raw_posts: list[dict] = []
     async for tweet in api.user_tweets(user.id, limit=20):
@@ -184,12 +272,30 @@ async def _scrape_x(handle: str) -> RawAudience:
             "posted_at": tweet.date.isoformat() if tweet.date else None,
         })
 
+    followers: list[dict] = []
+    async for u in api.followers(user.id, limit=100):
+        followers.append({
+            "username": u.username,
+            "bio": u.rawDescription or "",
+            "follower_count": u.followersCount or 0,
+        })
+
+    following: list[dict] = []
+    async for u in api.following(user.id, limit=100):
+        following.append({
+            "username": u.username,
+            "bio": u.rawDescription or "",
+            "follower_count": u.followersCount or 0,
+        })
+
     raw = {
         "profile": {
             "biography": user.rawDescription or "",
             "followersCount": user.followersCount or 0,
         },
         "posts": raw_posts,
+        "followers": followers,
+        "following": following,
     }
     _save_cache(handle, "x", raw)
     return _build_audience(raw, "x")
@@ -236,10 +342,19 @@ def _build_audience(data: dict, platform: str) -> RawAudience:
     all_hashtags = [ht for p in posts for ht in p.hashtags]
     all_mentions = [m for p in posts for m in _extract_mentions(p.caption)]
 
+    followers_sample = [
+        NetworkProfile(**f) for f in data.get("followers", [])[:100]
+    ]
+    following_sample = [
+        NetworkProfile(**f) for f in data.get("following", [])[:100]
+    ]
+
     return RawAudience(
         bio=bio,
         follower_count=follower_count,
         posts=posts,
         top_hashtags=_top_n(all_hashtags, 15),
         top_mentioned_accounts=_top_n(all_mentions, 10),
+        followers_sample=followers_sample,
+        following_sample=following_sample,
     )

@@ -6,7 +6,7 @@ import logging
 from openai import AsyncOpenAI
 
 from config import get_settings
-from models.schemas import Persona, RawAudience
+from models.schemas import NetworkInsights, Persona, RawAudience
 
 logger = logging.getLogger(__name__)
 
@@ -22,8 +22,9 @@ _BANNED_PHRASES = [
 ]
 
 _SYSTEM_PROMPT = """\
-You are a brand strategist who builds vivid, specific customer personas from social \
-audience signals. You avoid generic demographic descriptions. You ground every claim \
+You are a brand strategist who builds vivid, specific brand personas from a person's \
+own social presence. You analyze the USER'S OWN posts, bio, and tone to define their \
+brand voice and ideal customer — not a generic audience profile. You ground every claim \
 in the data provided. You write the way a sharp editorial writer does — concrete nouns, \
 no corporate filler.
 
@@ -36,33 +37,33 @@ BANNED PHRASES — never write these:
 - Any sentence starting with "They are..."
 
 Instead: name a specific subreddit, magazine, brand, ritual, or third-place. \
-Force yourself to be embarrassingly specific. A persona that names a specific \
-subreddit is worth 10 that say "values community".\
+Force yourself to be embarrassingly specific.\
 """
 
 _USER_PROMPT_TEMPLATE = """\
 PRODUCT IDEA: {product_idea}
 
-CREATOR'S AUDIENCE (signals only — the persona is the *audience member*, not the creator):
+THIS IS THE USER'S OWN PROFILE — analyze their voice and persona to build their brand:
   Bio: {bio}
   Follower count: {follower_count}
-  Top hashtags: {top_hashtags}
-  Frequently mentioned accounts: {mentioned_accounts}
-  Recent post captions (sample of 10):
+  Top hashtags they use: {top_hashtags}
+  Accounts they mention: {mentioned_accounts}
+  Their recent posts (sample of 10):
 {captions}
 
-Synthesize the primary customer persona who would buy this product from this creator. \
+Based on how this person writes and what they talk about, synthesize the brand persona \
+they embody AND the ideal customer who would buy their product. \
 Return JSON with this exact schema:
 {{
-  "name": "first name only, evocative — not 'John' or 'Sarah'. Pick something that fits the cultural register.",
+  "name": "a persona name for their ideal customer — evocative, not 'John' or 'Sarah'",
   "age_range": "tight 4-6 year range, e.g. '24-29'",
-  "location_archetype": "where this person lives — archetypal not literal. Example: 'second-tier creative cities — Lisbon, Mexico City, Brooklyn'",
-  "psychographics": ["3-5 short phrases capturing values, beliefs, lifestyle — specific enough to name a subreddit or magazine"],
+  "location_archetype": "archetypal not literal — e.g. 'second-tier creative cities — Lisbon, Mexico City, Brooklyn'",
+  "psychographics": ["3-5 short phrases — specific enough to name a subreddit or magazine"],
   "interests": ["5-8 specific interests — not 'music', say 'minimalist techno' or 'natural wine bars'"],
-  "purchase_signals": ["3-4 concrete things they actually spend money on that signal they'd buy this product"],
-  "aesthetic_keywords": ["EXACTLY 5 visual words fed to an image generator. Be visual and specific: 'matte black, brutalist concrete, Tokyo neon, raw edges, monospace type'. Not 'modern' or 'clean'."],
-  "voice_traits": ["3 adjectives for how a brand should speak to them"],
-  "summary": "exactly 2 sentences. Vivid. Specific. Reference a cultural touchpoint when supported by the data. Start the first sentence with a concrete behavior, not an adjective. No corporate speak."
+  "purchase_signals": ["3-4 concrete things their ideal customer spends money on"],
+  "aesthetic_keywords": ["EXACTLY 5 visual words for an image generator. Specific: 'matte black, brutalist concrete, Tokyo neon, raw edges, monospace type'. Not 'modern' or 'clean'."],
+  "voice_traits": ["3 adjectives describing this user's brand voice based on how they actually write"],
+  "summary": "exactly 2 sentences. Vivid. Specific. Start with a concrete behavior. No corporate speak."
 }}\
 """
 
@@ -178,3 +179,73 @@ async def suggest_brand_name(
     recommended: str = data["recommended"]
     logger.info("Brand names: %s (recommended: %s)", options, recommended)
     return options, recommended
+
+
+_NETWORK_SYSTEM = """\
+You are an audience analyst. Given a sample of bios from someone's Twitter/X \
+followers and following, you identify patterns, archetypes, and actionable \
+targeting insights. You are specific — you name industries, job titles, \
+communities, and cultural references. You never say "diverse audience" or \
+"wide range of interests".\
+"""
+
+_NETWORK_USER_TEMPLATE = """\
+Analyze the network of @{handle} to determine who they should market their brand to.
+
+THEIR BIO: {bio}
+
+SAMPLE FOLLOWER BIOS ({follower_count} followers, showing {sample_size}):
+{follower_bios}
+
+SAMPLE FOLLOWING BIOS (showing {following_size}):
+{following_bios}
+
+Return JSON with this exact schema:
+{{
+  "audience_archetypes": ["3-5 specific types of people in this network — e.g. 'indie SaaS founders building in public', 'UX designers at Series A startups'"],
+  "common_interests": ["top 6-8 interests that appear across the network bios"],
+  "content_pillars": ["4-5 topics this person should post about to resonate with their network"],
+  "push_targets": ["3-4 specific audience segments to push the brand to — job titles, communities, platforms"],
+  "brand_voice_match": "one sentence: what tone, register, and style lands with this specific network",
+  "network_summary": "exactly 2 sentences. Who follows this person and why. Specific — name a platform, publication, or community if the data supports it."
+}}\
+"""
+
+
+async def analyze_network(handle: str, audience: RawAudience) -> NetworkInsights:
+    """Analyze followers/following to produce audience targeting insights."""
+    settings = get_settings()
+    client = AsyncOpenAI(api_key=settings.openai_api_key)
+
+    follower_bios = "\n".join(
+        f"- @{f.username}: {f.bio[:120]}" if f.bio else f"- @{f.username}"
+        for f in audience.followers_sample[:60]
+    ) or "(no follower data — using post signals only)"
+
+    following_bios = "\n".join(
+        f"- @{f.username}: {f.bio[:120]}" if f.bio else f"- @{f.username}"
+        for f in audience.following_sample[:40]
+    ) or "(no following data)"
+
+    prompt = _NETWORK_USER_TEMPLATE.format(
+        handle=handle,
+        bio=audience.bio,
+        follower_count=audience.follower_count,
+        sample_size=len(audience.followers_sample),
+        follower_bios=follower_bios,
+        following_size=len(audience.following_sample),
+        following_bios=following_bios,
+    )
+
+    resp = await client.chat.completions.create(
+        model="gpt-4o",
+        messages=[
+            {"role": "system", "content": _NETWORK_SYSTEM},
+            {"role": "user", "content": prompt},
+        ],
+        response_format={"type": "json_object"},
+        temperature=0.7,
+    )
+
+    data = json.loads(resp.choices[0].message.content)
+    return NetworkInsights(**data)

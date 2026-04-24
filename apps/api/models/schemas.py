@@ -119,9 +119,26 @@ class RawAudiencePost(BaseModel):
     image_url: Optional[str] = None
 
 
+class NetworkProfile(BaseModel):
+    username: str
+    bio: str = ""
+    follower_count: int = 0
+
+
+class NetworkInsights(BaseModel):
+    audience_archetypes: list[str]   # 3-5 types of people in their network
+    common_interests: list[str]      # top interests across followers/following
+    content_pillars: list[str]       # topics that resonate with this network
+    push_targets: list[str]          # who to market to — specific and actionable
+    brand_voice_match: str           # tone that lands with this audience
+    network_summary: str             # 2 sentences, vivid
+
+
 class RawAudience(BaseModel):
     bio: str = ""
     follower_count: int = 0
     posts: list[RawAudiencePost] = Field(default_factory=list)
     top_hashtags: list[str] = Field(default_factory=list)
     top_mentioned_accounts: list[str] = Field(default_factory=list)
+    followers_sample: list[NetworkProfile] = Field(default_factory=list)
+    following_sample: list[NetworkProfile] = Field(default_factory=list)
