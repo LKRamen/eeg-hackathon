@@ -1,0 +1,206 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>{{ brand.brand_name }} — Brand Guide</title>
+  {% if brand.typography %}
+  <link rel="stylesheet" href="{{ brand.typography.display.google_url }}">
+  <link rel="stylesheet" href="{{ brand.typography.body.google_url }}">
+  {% endif %}
+  <style>
+    :root {
+      --primary:   {{ tokens.primary }};
+      --secondary: {{ tokens.secondary }};
+      --accent:    {{ tokens.accent }};
+      --bg:        {{ tokens.bg }};
+      --fg:        {{ tokens.fg }};
+      --display-family: "{{ brand.typography.display.family if brand.typography else 'Space Grotesk' }}";
+      --body-family:    "{{ brand.typography.body.family if brand.typography else 'Inter' }}";
+    }
+  </style>
+</head>
+<body>
+
+<!-- PAGE 1 — COVER -->
+<section class="page col center">
+  {% if brand.logo %}
+  <img src="{{ brand.logo.primary }}" alt="logo" style="width: 320px; height: 320px; object-fit: contain;">
+  {% endif %}
+  <h1 class="display text-4xl" style="margin-top: 32px;">{{ brand.brand_name }}</h1>
+  {% if brand.tagline %}
+  <p class="italic text-md" style="margin-top: 12px;">{{ brand.tagline }}</p>
+  {% endif %}
+  <div style="position: absolute; bottom: 4cm; left: 4cm; right: 4cm;" class="between mono text-xs upper">
+    <span>Brand Guide</span><span>{{ date }}</span>
+  </div>
+</section>
+
+<!-- PAGE 2 — CUSTOMER -->
+<section class="page col">
+  <div class="label">Built for</div>
+  <h2 class="display text-xl">{{ persona.name or "Customer" }}</h2>
+  <div class="mono text-sm">{{ persona.age_range }}{% if persona.location_archetype %} · {{ persona.location_archetype }}{% endif %}</div>
+  <p class="pullquote" style="margin-top: 24px; max-width: 600px;">{{ persona.summary }}</p>
+
+  <div class="grid-2" style="margin-top: 32px;">
+    <div>
+      <div class="label">Interests</div>
+      <ul style="list-style: none; margin-top: 8px;">
+        {% for it in persona.interests %}<li style="padding: 4px 0;">— {{ it }}</li>{% endfor %}
+      </ul>
+    </div>
+    <div>
+      <div class="label">Psychographics</div>
+      <ul style="list-style: none; margin-top: 8px;">
+        {% for ps in persona.psychographics %}<li style="padding: 4px 0;">— {{ ps }}</li>{% endfor %}
+      </ul>
+    </div>
+  </div>
+
+  <div style="margin-top: 32px;">
+    <div class="label">Aesthetic</div>
+    <div style="margin-top: 8px;">
+      {% for kw in persona.aesthetic_keywords %}<span class="chip">{{ kw }}</span>{% endfor %}
+    </div>
+  </div>
+</section>
+
+<!-- PAGE 3 — LOGO -->
+<section class="page col">
+  <div class="label">Logo</div>
+  <h2 class="display text-xl">Identity in four states</h2>
+  {% if brand.logo %}
+  <div class="grid-2" style="margin-top: 32px;">
+    <div class="center" style="background: #fff; padding: 24px; border: 1px solid var(--fg);">
+      <img src="{{ brand.logo.primary }}" alt="primary" style="max-height: 200px;">
+    </div>
+    <div class="center" style="background: #fff; padding: 24px; border: 1px solid var(--fg);">
+      <img src="{{ brand.logo.mono_dark }}" alt="mono dark" style="max-height: 200px;">
+    </div>
+    <div class="center" style="background: #0a0a0a; padding: 24px;">
+      <img src="{{ brand.logo.mono_light }}" alt="mono light" style="max-height: 200px;">
+    </div>
+    <div class="center" style="background: var(--primary); padding: 24px;">
+      <img src="{{ brand.logo.on_brand }}" alt="on brand" style="max-height: 200px;">
+    </div>
+  </div>
+  <div class="row mono text-xs upper" style="margin-top: 16px;">
+    <span style="flex:1;">Primary</span><span style="flex:1;">Mono · dark bg</span>
+    <span style="flex:1;">Mono · light bg</span><span style="flex:1;">On brand</span>
+  </div>
+  {% endif %}
+</section>
+
+<!-- PAGE 4 — PALETTE -->
+<section class="page col">
+  <div class="label">Palette</div>
+  <h2 class="display text-xl">Five colors, one world</h2>
+  <div class="grid-5" style="margin-top: 32px;">
+    {% for c in brand.palette %}
+    <div class="swatch{% if c.role == 'primary' or c.role == 'fg' %} dark{% endif %}"
+         style="background: {{ c.hex }};">
+      <div>
+        <div class="mono text-xs upper">{{ c.role }}</div>
+        <div class="text-md" style="margin-top: 4px;">{{ c.name }}</div>
+        <div class="mono text-xs" style="margin-top: 4px;">{{ c.hex }}</div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% if contrast_ratio %}
+  <div class="label" style="margin-top: 24px;">Body contrast ratio: {{ contrast_ratio }}:1 — WCAG AA</div>
+  {% endif %}
+</section>
+
+<!-- PAGE 5 — TYPOGRAPHY -->
+<section class="page col">
+  <div class="label">Typography</div>
+  <h2 class="display text-xl">Two voices in type</h2>
+  {% if brand.typography %}
+  <div style="margin-top: 32px;">
+    <div class="mono text-xs upper">Display · {{ brand.typography.display.family }}</div>
+    <div class="display text-5xl" style="margin-top: 8px;">Aa Bb Cc</div>
+    <div class="display text-xl" style="margin-top: 16px;">The quick brown fox jumps over the lazy dog.</div>
+  </div>
+  <div style="margin-top: 48px;">
+    <div class="mono text-xs upper">Body · {{ brand.typography.body.family }}</div>
+    <p class="text-md" style="margin-top: 8px; max-width: 600px;">
+      The quick brown fox jumps over the lazy dog. Pack my box with five dozen
+      liquor jugs. The five boxing wizards jump quickly. How vexingly quick
+      daft zebras jump.
+    </p>
+  </div>
+  {% endif %}
+</section>
+
+<!-- PAGE 6 — VOICE -->
+<section class="page col">
+  <div class="label">Voice</div>
+  {% if brand.voice %}
+  <p class="pullquote" style="margin-top: 16px; max-width: 600px;">{{ brand.voice.tone }}</p>
+  <div class="grid-2" style="margin-top: 32px;">
+    <div>
+      <div class="label">Do</div>
+      <ul style="list-style: none; margin-top: 8px;">
+        {% for d in brand.voice.do %}<li style="padding: 4px 0;">— {{ d }}</li>{% endfor %}
+      </ul>
+    </div>
+    <div>
+      <div class="label">Don't</div>
+      <ul style="list-style: none; margin-top: 8px;">
+        {% for d in brand.voice.dont %}<li style="padding: 4px 0;">— {{ d }}</li>{% endfor %}
+      </ul>
+    </div>
+  </div>
+  <div style="margin-top: 32px;">
+    <div class="label">In the wild</div>
+    {% for ex in brand.voice.examples %}
+    <p class="text-md italic" style="margin-top: 8px;">"{{ ex }}"</p>
+    {% endfor %}
+  </div>
+  {% endif %}
+</section>
+
+<!-- PAGE 7 — MOCKUPS -->
+{% if brand.mockups %}
+<section class="page col">
+  <div class="label">Applied</div>
+  <h2 class="display text-xl">In the world</h2>
+  <div class="grid-2" style="margin-top: 32px;">
+    {% for m in brand.mockups[:4] %}
+    <div class="col">
+      <img src="{{ m.url }}" alt="{{ m.label }}" style="width: 100%;">
+      <div class="mono text-xs upper">{{ m.label }}</div>
+    </div>
+    {% endfor %}
+  </div>
+</section>
+{% endif %}
+
+<!-- PAGE 8 — SOCIAL -->
+{% if brand.social_kit %}
+<section class="page col">
+  <div class="label">Social</div>
+  <h2 class="display text-xl">Posting kit</h2>
+  <div class="grid-4" style="margin-top: 32px;">
+    {% for s in brand.social_kit %}
+    <div class="col">
+      <img src="{{ s.url }}" alt="{{ s.label }}" style="width: 100%;">
+      <div class="mono text-xs upper">{{ s.label }}</div>
+    </div>
+    {% endfor %}
+  </div>
+</section>
+{% endif %}
+
+<!-- PAGE 9 — BACK COVER -->
+<section class="page center col">
+  {% if brand.logo %}
+  <img src="{{ brand.logo.mono_dark }}" alt="" style="width: 96px; height: 96px; object-fit: contain;">
+  {% endif %}
+  <p class="mono text-xs upper" style="margin-top: 16px;">Generated by Halo · {{ date }}</p>
+  <p class="mono text-xs" style="margin-top: 4px;">halo.app</p>
+</section>
+
+</body>
+</html>
