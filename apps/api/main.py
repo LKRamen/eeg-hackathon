@@ -3,7 +3,8 @@ from __future__ import annotations
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from config import get_settings
+from .config import get_settings
+from .routers import health, jobs
 
 settings = get_settings()
 
@@ -17,12 +18,5 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-
-@app.get("/health")
-def health() -> dict[str, bool]:
-    return {"ok": True}
-
-
-# Routers are wired in Task 3.
-# from routers import jobs
-# app.include_router(jobs.router)
+app.include_router(health.router)
+app.include_router(jobs.router)
