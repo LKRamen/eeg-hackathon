@@ -2,19 +2,13 @@ from __future__ import annotations
 
 import datetime as dt
 import logging
-from pathlib import Path
-from typing import Optional
-
-from jinja2 import Environment, FileSystemLoader, select_autoescape
 
 from apps.api.models.schemas import BrandAssets
 
 from . import _storage as storage
+from ._template_helpers import jinja_env, render_pdf
 
 logger = logging.getLogger(__name__)
-
-_TEMPLATES_DIR = Path(__file__).resolve().parent.parent / "templates"
-_BASE_CSS = _TEMPLATES_DIR / "_base.css"
 
 
 # Tiny hand-curated Pantone subset. Real production color matching uses the
@@ -88,13 +82,7 @@ def _build_color_rows(brand: BrandAssets) -> list[dict]:
 
 
 def render_mfg_spec_html(brand: BrandAssets) -> str:
-    env = Environment(
-        loader=FileSystemLoader(str(_TEMPLATES_DIR)),
-        autoescape=select_autoescape(["html"]),
-        trim_blocks=True,
-        lstrip_blocks=True,
-    )
-    template = env.get_template("mfg_spec.html")
+    template = jinja_env().get_template("mfg_spec.html")
     return template.render(
         brand=brand,
         color_rows=_build_color_rows(brand),
@@ -102,23 +90,11 @@ def render_mfg_spec_html(brand: BrandAssets) -> str:
     )
 
 
-def _render_pdf(html: str) -> Optional[bytes]:
-    try:
-        import weasyprint
-    except Exception as exc:
-        logger.warning("WeasyPrint import failed: %s", exc)
-        return None
-    try:
-        return weasyprint.HTML(string=html, base_url=str(_TEMPLATES_DIR)).write_pdf()
-    except OSError as exc:
-        logger.warning("WeasyPrint render failed: %s", exc)
-        return None
-
-
 async def build_mfg_spec(brand: BrandAssets, job_id: str) -> str:
     """Render the one-page manufacturing spec PDF (HTML fallback when no GTK)."""
     html = render_mfg_spec_html(brand)
-    pdf = _render_pdf(html)
+    # mfg spec uses its own dense print CSS inline — no shared base.
+    pdf = render_pdf(html, use_base_css=False)
     if pdf is not None:
         return await storage.upload_image(
             pdf,
