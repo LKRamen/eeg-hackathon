@@ -1,0 +1,102 @@
+[
+  {
+    "id": "agcy_001",
+    "name": "Mute & Co",
+    "blurb": "Brand identity for sound-first products — labels, headphones, streaming apps. Quiet typography, strong silhouettes. Known for letting negative space do the talking.",
+    "specialty_tags": ["audio", "music", "tech hardware", "streaming"],
+    "aesthetic_tags": ["minimal", "monochrome", "typographic", "editorial"],
+    "notable_clients": ["Tide Records", "Pylon Audio", "Slow Radio"],
+    "min_budget": "$15,000",
+    "website": "https://muteandco.example.com"
+  },
+  {
+    "id": "agcy_002",
+    "name": "Folio Dept",
+    "blurb": "Editorial-first branding for publishers, zines, and literary brands. Masters of type hierarchy and the kind of cover that makes someone pick up a book off a shelf.",
+    "specialty_tags": ["publishing", "editorial", "media", "content"],
+    "aesthetic_tags": ["editorial", "typographic", "retro-tech", "monochrome"],
+    "notable_clients": ["Carve Press", "The Interval Quarterly", "Silt Books"],
+    "min_budget": "$8,000",
+    "website": "https://foliodept.example.com"
+  },
+  {
+    "id": "agcy_003",
+    "name": "Verde Studio",
+    "blurb": "Sustainability and outdoor brands. Their work puts you in the field — texture, topographic detail, earthy restraint. Clients are B-corps, trail gear, and regenerative food.",
+    "specialty_tags": ["sustainability", "outdoor", "food", "cpg", "b-corp"],
+    "aesthetic_tags": ["organic", "earthy", "scandinavian", "minimal", "textural"],
+    "notable_clients": ["Ridge & Root", "Terroir Farms", "Bark Supply Co"],
+    "min_budget": "$12,000",
+    "website": "https://verdestudio.example.com"
+  },
+  {
+    "id": "agcy_004",
+    "name": "Slab",
+    "blurb": "Brutalist brand identities for fashion, architecture, and nightlife. Thick rules, raw grids, type that hits you before you've read it. Not for the faint of heart.",
+    "specialty_tags": ["streetwear", "fashion", "architecture", "nightlife"],
+    "aesthetic_tags": ["brutalist", "maximal", "monochrome", "raw", "typographic"],
+    "notable_clients": ["Gravel Club", "Forma Apparel", "Night&Night"],
+    "min_budget": "$20,000",
+    "website": "https://slab.example.com"
+  },
+  {
+    "id": "agcy_005",
+    "name": "Kuroi",
+    "blurb": "Japanese-influenced branding for wellness, skincare, and hospitality. Japandi sensibility — restraint, ritual, natural materials, zero wasted elements.",
+    "specialty_tags": ["beauty", "wellness", "skincare", "hospitality", "spa"],
+    "aesthetic_tags": ["japandi", "minimal", "organic", "monochrome", "textural"],
+    "notable_clients": ["Ōka Skincare", "Shio Bathhouse", "Nen Ceramics"],
+    "min_budget": "$18,000",
+    "website": "https://kuroi.example.com"
+  },
+  {
+    "id": "agcy_006",
+    "name": "Flux Form",
+    "blurb": "Neo-futurist tech and SaaS brands. They understand that B2B doesn't have to be boring — dark-mode-first, motion-ready systems that work in pitch decks and dashboards.",
+    "specialty_tags": ["tech", "saas", "software", "ai", "fintech"],
+    "aesthetic_tags": ["neo-futurist", "dark-mode", "typographic", "minimal", "motion"],
+    "notable_clients": ["Latent Systems", "Qore API", "Venn Infrastructure"],
+    "min_budget": "$25,000",
+    "website": "https://fluxform.example.com"
+  },
+  {
+    "id": "agcy_007",
+    "name": "Palate Works",
+    "blurb": "Food, beverage, and hospitality identities that make you hungry. Warm but never saccharine — tactile packaging, hand-drawn elements, and type you'd find on a 1970s diner menu.",
+    "specialty_tags": ["food", "beverage", "restaurant", "cpg", "hospitality"],
+    "aesthetic_tags": ["retro-tech", "vibrant", "playful", "organic", "editorial"],
+    "notable_clients": ["Cinder Coffee", "Brine Pickle Co", "Cassette Diner"],
+    "min_budget": "$10,000",
+    "website": "https://palateworks.example.com"
+  },
+  {
+    "id": "agcy_008",
+    "name": "Seam Studio",
+    "blurb": "Luxury and accessible fashion brands — from haute streetwear to sustainable sportswear. Systems thinkers who design for print, label, tag, and social in one pass.",
+    "specialty_tags": ["fashion", "apparel", "luxury", "sportswear", "accessories"],
+    "aesthetic_tags": ["editorial", "minimal", "scandinavian", "typographic", "monochrome"],
+    "notable_clients": ["Fallow Apparel", "Loam Denim", "Arc Athletics"],
+    "min_budget": "$22,000",
+    "website": "https://seamstudio.example.com"
+  },
+  {
+    "id": "agcy_009",
+    "name": "Helix & Co",
+    "blurb": "Sports, fitness, and performance brands. High-energy visual systems that translate from stadium billboards to app icons. They have an in-house motion team.",
+    "specialty_tags": ["sports", "fitness", "performance", "nutrition", "activewear"],
+    "aesthetic_tags": ["vibrant", "bold", "maximal", "neo-futurist", "kinetic"],
+    "notable_clients": ["Volt Energy", "Grounded Athletics", "Split Form"],
+    "min_budget": "$30,000",
+    "website": "https://helixco.example.com"
+  },
+  {
+    "id": "agcy_010",
+    "name": "Alcove",
+    "blurb": "Home goods, interiors, and lifestyle brands. Art-deco revival meets Scandinavian restraint. Their packaging feels like an object before you've even opened it.",
+    "specialty_tags": ["home goods", "interiors", "lifestyle", "gifting", "wellness"],
+    "aesthetic_tags": ["art-deco", "scandinavian", "organic", "minimal", "textural"],
+    "notable_clients": ["Vessel Ceramics", "Pale House", "Morrow Candles"],
+    "min_budget": "$14,000",
+    "website": "https://alcovebrands.example.com"
+  }
+]

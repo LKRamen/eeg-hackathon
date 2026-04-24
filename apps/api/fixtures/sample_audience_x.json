@@ -1,0 +1,115 @@
+{
+  "bio": "building in public | ex-@stripe → indie | writing about tools, taste, and the internet | lisbon / sf | DMs open",
+  "follower_count": 31200,
+  "posts": [
+    {
+      "caption": "the best products right now are made by people who are slightly embarrassed to ship them. too specific, too weird, too priced for 1000 people instead of 1M. that's the tell. #buildinpublic #productdesign",
+      "hashtags": ["#buildinpublic", "#productdesign"],
+      "like_count": 1840,
+      "comment_count": 134,
+      "posted_at": "2024-11-14T10:30:00",
+      "image_url": null
+    },
+    {
+      "caption": "Lisbon is doing something interesting. Not just the weather. Real product studios, people who left FAANG to make physical things. Something is shifting. @lisbonbuilders @fabricapt",
+      "hashtags": [],
+      "like_count": 2310,
+      "comment_count": 287,
+      "posted_at": "2024-11-12T14:00:00",
+      "image_url": null
+    },
+    {
+      "caption": "tools i actually pay for: Raycast, Linear, Loom, Readwise, iA Writer, Fathom. everything else i've tried to replace with open source and mostly failed. #productivity #tools",
+      "hashtags": ["#productivity", "#tools"],
+      "like_count": 4120,
+      "comment_count": 445,
+      "posted_at": "2024-11-09T09:00:00",
+      "image_url": null
+    },
+    {
+      "caption": "spent the weekend re-reading The Information by James Gleick. every person building AI right now should read it first. not because it's about AI — because it's about what happens when the medium becomes the message at scale. #reading #books",
+      "hashtags": ["#reading", "#books"],
+      "like_count": 987,
+      "comment_count": 78,
+      "posted_at": "2024-11-07T20:00:00",
+      "image_url": null
+    },
+    {
+      "caption": "the secret of great taste is just that it's operationalized. 'good taste' people make it sound mystical. it's not. it's just having articulated principles and applying them consistently, even when it's inconvenient. #design #taste",
+      "hashtags": ["#design", "#taste"],
+      "like_count": 5670,
+      "comment_count": 612,
+      "posted_at": "2024-11-05T11:30:00",
+      "image_url": null
+    },
+    {
+      "caption": "new essay up: why I think the best software of this decade will come from solo operators who understand one industry deeply, not from teams that understand software deeply. link in bio. #essay #indie #buildinpublic",
+      "hashtags": ["#essay", "#indie", "#buildinpublic"],
+      "like_count": 2890,
+      "comment_count": 198,
+      "posted_at": "2024-11-02T08:00:00",
+      "image_url": null
+    },
+    {
+      "caption": "current reading stack: Debt by David Graeber, an old copy of Metropolis magazine from 1994, Recursive Book of Recursion. very normal Saturday.",
+      "hashtags": [],
+      "like_count": 1560,
+      "comment_count": 145,
+      "posted_at": "2024-10-29T15:00:00",
+      "image_url": null
+    },
+    {
+      "caption": "hot take: the best interface for most SaaS products is still email. I will accept counterexamples.",
+      "hashtags": [],
+      "like_count": 7230,
+      "comment_count": 890,
+      "posted_at": "2024-10-26T13:00:00",
+      "image_url": null
+    },
+    {
+      "caption": "minimal setup update: standing desk, single monitor, no notifications on anything. if it's urgent, call. everything else can wait 90 minutes. #deepwork #minimalism #workspace",
+      "hashtags": ["#deepwork", "#minimalism", "#workspace"],
+      "like_count": 3400,
+      "comment_count": 234,
+      "posted_at": "2024-10-22T07:30:00",
+      "image_url": null
+    },
+    {
+      "caption": "the problem with 'build in public' is it selects for the stuff that looks good on Twitter, not the stuff that works. the most important decisions I've made have been impossible to tweet. #buildinpublic #startups",
+      "hashtags": ["#buildinpublic", "#startups"],
+      "like_count": 6780,
+      "comment_count": 756,
+      "posted_at": "2024-10-18T10:00:00",
+      "image_url": null
+    }
+  ],
+  "top_hashtags": [
+    "#buildinpublic",
+    "#productdesign",
+    "#tools",
+    "#productivity",
+    "#deepwork",
+    "#design",
+    "#indie",
+    "#minimalism",
+    "#books",
+    "#reading",
+    "#startups",
+    "#taste",
+    "#essay",
+    "#workspace",
+    "#software"
+  ],
+  "top_mentioned_accounts": [
+    "@lisbonbuilders",
+    "@fabricapt",
+    "@stripe",
+    "@linear",
+    "@raycast",
+    "@readwise",
+    "@iAWriter",
+    "@fathomanalytics",
+    "@loom",
+    "@bearblog"
+  ]
+}

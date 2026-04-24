@@ -3,27 +3,54 @@ from typing import Literal, Optional
 from datetime import datetime
 
 
+Platform = Literal["instagram", "tiktok", "youtube", "x"]
+
+
 class CreateJobRequest(BaseModel):
     handle: str
     product_idea: str
-    platform: Literal["instagram"] = "instagram"
+    platform: Platform = "instagram"
 
 
-class Post(BaseModel):
-    caption: str
-    hashtags: list[str]
-    like_count: int
-    comment_count: int
-    posted_at: str
+class RawAudiencePost(BaseModel):
+    """Single audience post — defaults so partial parses don't crash."""
+    caption: str = ""
+    hashtags: list[str] = Field(default_factory=list)
+    like_count: int = 0
+    comment_count: int = 0
+    posted_at: Optional[datetime] = None
     image_url: Optional[str] = None
 
 
+# Back-compat alias for code that imports Post.
+Post = RawAudiencePost
+
+
+class NetworkProfile(BaseModel):
+    """A follower/following sample entry."""
+    username: str
+    bio: str = ""
+    follower_count: int = 0
+
+
+class NetworkInsights(BaseModel):
+    """Person 2's network synthesis output — derived from followers/following."""
+    audience_archetypes: list[str]
+    common_interests: list[str]
+    content_pillars: list[str]
+    push_targets: list[str]
+    brand_voice_match: str
+    network_summary: str
+
+
 class RawAudience(BaseModel):
-    bio: str
-    follower_count: int
-    posts: list[Post]
-    top_hashtags: list[str]
-    top_mentioned_accounts: list[str]
+    bio: str = ""
+    follower_count: int = 0
+    posts: list[RawAudiencePost] = Field(default_factory=list)
+    top_hashtags: list[str] = Field(default_factory=list)
+    top_mentioned_accounts: list[str] = Field(default_factory=list)
+    followers_sample: list[NetworkProfile] = Field(default_factory=list)
+    following_sample: list[NetworkProfile] = Field(default_factory=list)
 
 
 class Persona(BaseModel):
@@ -106,7 +133,7 @@ class SocialAsset(BaseModel):
     """Single social-media-sized image (post or story)."""
     label: str
     url: str
-    platform: Literal["instagram", "tiktok", "youtube"] = "instagram"
+    platform: Platform = "instagram"
     format: Literal["post", "story"] = "post"
 
 
