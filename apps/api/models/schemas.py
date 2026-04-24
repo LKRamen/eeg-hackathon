@@ -38,9 +38,16 @@ class PaletteColor(BaseModel):
     name: str
 
 
+Color = PaletteColor
+
+
 class TypographyFace(BaseModel):
     family: str
     google_url: str
+    weights: list[int] = Field(default_factory=lambda: [400, 700])
+
+
+FontSpec = TypographyFace
 
 
 class Typography(BaseModel):
@@ -49,7 +56,7 @@ class Typography(BaseModel):
 
 
 class Voice(BaseModel):
-    tone: str
+    tone: str = ""
     do: list[str] = Field(default_factory=list)
     dont: list[str] = Field(default_factory=list)
     examples: list[str] = Field(default_factory=list)
@@ -60,13 +67,31 @@ class Mockup(BaseModel):
     url: str
 
 
+class LogoVariants(BaseModel):
+    primary: str
+    mono_dark: str
+    mono_light: str
+    on_brand: str
+    avatar: str = ""
+
+
+class SocialAsset(BaseModel):
+    label: str
+    url: str
+    platform: Platform = "instagram"
+    format: Literal["post", "story"] = "post"
+
+
 class BrandAssets(BaseModel):
     brand_name: str
-    logo_url: str
-    palette: list[PaletteColor]
-    typography: Typography
-    voice: Voice
-    mockups: list[Mockup]
+    tagline: str = ""
+    logo_url: str = ""
+    logo: Optional[LogoVariants] = None
+    palette: list[PaletteColor] = Field(default_factory=list)
+    typography: Optional[Typography] = None
+    voice: Optional[Voice] = None
+    mockups: list[Mockup] = Field(default_factory=list)
+    social_kit: list[SocialAsset] = Field(default_factory=list)
 
 
 class AgencyMatch(BaseModel):
@@ -85,8 +110,12 @@ class AgencyMatch(BaseModel):
 class BrandResult(BaseModel):
     persona: Persona
     brand_assets: BrandAssets
-    agency_matches: list[AgencyMatch]
+    agency_matches: list[AgencyMatch] = Field(default_factory=list)
     brand_guide_pdf_url: Optional[str] = None
+    pitch_deck_pdf_url: Optional[str] = None
+    web_guide_url: Optional[str] = None
+    mfg_spec_sheet_pdf_url: Optional[str] = None
+    brand_kit_zip_url: Optional[str] = None
     error_message: Optional[str] = None
 
 
