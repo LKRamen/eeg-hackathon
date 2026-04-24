@@ -1,0 +1,163 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>{{ brand.brand_name }} — Pitch</title>
+  {% if brand.typography %}
+  <link rel="stylesheet" href="{{ brand.typography.display.google_url }}">
+  <link rel="stylesheet" href="{{ brand.typography.body.google_url }}">
+  {% endif %}
+  <style>
+    @page { size: A4 landscape; margin: 0; }
+    :root {
+      --primary:   {{ tokens.primary }};
+      --secondary: {{ tokens.secondary }};
+      --accent:    {{ tokens.accent }};
+      --bg:        {{ tokens.bg }};
+      --fg:        {{ tokens.fg }};
+      --display-family: "{{ brand.typography.display.family if brand.typography else 'Space Grotesk' }}";
+      --body-family:    "{{ brand.typography.body.family if brand.typography else 'Inter' }}";
+    }
+    .slide {
+      width: 297mm; height: 210mm;
+      padding: 24mm;
+      page-break-after: always;
+      break-after: page;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+    }
+    .slide:last-child { page-break-after: auto; break-after: auto; }
+    .slide.dark { background: var(--fg); color: var(--bg); }
+    .slide.brand { background: var(--primary); color: var(--bg); }
+    .stamp { position: absolute; bottom: 18mm; right: 24mm; }
+    .corner { position: absolute; bottom: 18mm; left: 24mm; }
+    .cta {
+      display: inline-block;
+      padding: 16px 28px;
+      background: var(--accent);
+      color: var(--bg);
+      font-family: var(--display-family), sans-serif;
+      font-size: 28px;
+      border-radius: 8px;
+      text-decoration: none;
+    }
+  </style>
+</head>
+<body>
+
+<!-- SLIDE 1 — TITLE -->
+<section class="slide center" style="align-items: center; justify-content: center;">
+  {% if brand.logo %}
+  <img src="{{ brand.logo.primary }}" alt="" style="height: 200px; object-fit: contain;">
+  {% endif %}
+  <h1 class="display" style="font-size: 144px; margin-top: 24px; font-family: var(--display-family);">{{ brand.brand_name }}</h1>
+  {% if brand.tagline %}
+  <p style="font-style: italic; font-size: 24px; margin-top: 16px; font-family: var(--body-family);">{{ brand.tagline }}</p>
+  {% endif %}
+  <div class="stamp mono" style="font-family: 'JetBrains Mono', monospace; font-size: 11px; text-transform: uppercase; letter-spacing: 0.1em;">
+    Pitch · {{ date }}
+  </div>
+</section>
+
+<!-- SLIDE 2 — CUSTOMER -->
+<section class="slide">
+  <div class="mono" style="font-family: 'JetBrains Mono', monospace; font-size: 11px; text-transform: uppercase; letter-spacing: 0.1em; color: color-mix(in srgb, var(--fg) 60%, transparent);">
+    Who we're for
+  </div>
+  <h2 class="display" style="font-family: var(--display-family); font-size: 56px; margin-top: 8px;">{{ persona.name or "Our customer" }}</h2>
+  <p style="font-size: 40px; line-height: 1.25; margin-top: 32px; max-width: 800px; font-family: var(--display-family);">
+    {{ persona.summary }}
+  </p>
+  <div style="margin-top: 32px;">
+    {% for kw in persona.aesthetic_keywords[:5] %}
+    <span style="display: inline-block; padding: 8px 16px; margin: 4px; border: 1px solid var(--fg); border-radius: 999px; font-size: 14px; text-transform: uppercase; letter-spacing: 0.08em;">{{ kw }}</span>
+    {% endfor %}
+  </div>
+  <div class="corner mono" style="font-family: 'JetBrains Mono', monospace; font-size: 11px; text-transform: uppercase; letter-spacing: 0.1em;">
+    {{ persona.age_range }}{% if persona.location_archetype %} · {{ persona.location_archetype }}{% endif %}
+  </div>
+</section>
+
+<!-- SLIDE 3 — BRAND -->
+<section class="slide">
+  <div class="mono" style="font-family: 'JetBrains Mono', monospace; font-size: 11px; text-transform: uppercase; letter-spacing: 0.1em;">
+    What we look like
+  </div>
+  <h2 class="display" style="font-family: var(--display-family); font-size: 56px; margin-top: 8px;">Brand at a glance</h2>
+  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 32px; margin-top: 32px; flex: 1;">
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+      {% if brand.logo %}
+      <div style="background: #fff; padding: 24px; border: 1px solid var(--fg); display: flex; align-items: center; justify-content: center;">
+        <img src="{{ brand.logo.primary }}" alt="" style="max-height: 120px;">
+      </div>
+      {% endif %}
+      <div style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px;">
+        {% for c in brand.palette %}
+        <div style="background: {{ c.hex }}; min-height: 100%;"></div>
+        {% endfor %}
+      </div>
+      {% if brand.typography %}
+      <div style="padding: 16px; border: 1px solid var(--fg);">
+        <div style="font-family: var(--display-family); font-size: 48px; line-height: 1;">Aa</div>
+        <div style="font-family: 'JetBrains Mono', monospace; font-size: 10px; text-transform: uppercase; margin-top: 8px;">
+          {{ brand.typography.display.family }}
+        </div>
+      </div>
+      {% endif %}
+      {% if brand.mockups %}
+      <div style="background: #fff; padding: 8px; border: 1px solid var(--fg); display: flex; align-items: center; justify-content: center;">
+        <img src="{{ brand.mockups[0].url }}" alt="" style="max-height: 120px;">
+      </div>
+      {% endif %}
+    </div>
+    {% if brand.voice %}
+    <div style="display: flex; align-items: center;">
+      <p style="font-style: italic; font-size: 32px; line-height: 1.3; font-family: var(--display-family);">"{{ brand.voice.tone }}"</p>
+    </div>
+    {% endif %}
+  </div>
+</section>
+
+<!-- SLIDE 4 — IN THE WORLD -->
+<section class="slide" style="padding: 0;">
+  <div style="display: grid; grid-template-columns: 1fr 1fr; height: 100%;">
+    <div style="background: var(--primary); display: flex; align-items: center; justify-content: center;">
+      {% if brand.mockups %}
+      <img src="{{ brand.mockups[0].url }}" alt="" style="max-width: 80%; max-height: 80%; object-fit: contain;">
+      {% endif %}
+    </div>
+    <div style="padding: 24mm; display: flex; flex-direction: column; gap: 16px;">
+      <div class="mono" style="font-family: 'JetBrains Mono', monospace; font-size: 11px; text-transform: uppercase; letter-spacing: 0.1em;">
+        How it shows up
+      </div>
+      <h2 class="display" style="font-family: var(--display-family); font-size: 56px;">In the world</h2>
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 16px;">
+        {% for s in brand.social_kit[:2] %}
+        <img src="{{ s.url }}" alt="{{ s.label }}" style="width: 100%; aspect-ratio: 1; object-fit: cover;">
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- SLIDE 5 — ASK -->
+<section class="slide brand center" style="align-items: center; justify-content: center; text-align: center;">
+  <div class="mono" style="font-family: 'JetBrains Mono', monospace; font-size: 12px; text-transform: uppercase; letter-spacing: 0.1em; opacity: 0.7;">
+    Ready to launch
+  </div>
+  <h2 class="display" style="font-family: var(--display-family); font-size: 96px; margin-top: 12px;">Build it with us</h2>
+  {% if agency_match %}
+  <p style="font-size: 24px; margin-top: 24px; max-width: 800px; line-height: 1.5; font-family: var(--body-family);">
+    Matched with <strong>{{ agency_match.name }}</strong>
+    ({{ "%.0f" % (agency_match.match_score * 100) }}% fit). {{ agency_match.why }}
+  </p>
+  {% endif %}
+  <a class="cta" href="#" style="margin-top: 40px;">Connect now</a>
+  <div class="stamp mono" style="font-family: 'JetBrains Mono', monospace; font-size: 11px; text-transform: uppercase; letter-spacing: 0.1em; opacity: 0.7;">
+    halo.app · {{ brand.brand_name }}
+  </div>
+</section>
+
+</body>
+</html>

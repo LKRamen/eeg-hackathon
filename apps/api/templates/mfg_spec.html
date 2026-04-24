@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>{{ brand.brand_name }} — Manufacturing Spec</title>
+  <style>
+    @page { size: A4; margin: 1.5cm; }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: "JetBrains Mono", "IBM Plex Mono", monospace;
+      font-size: 9pt;
+      color: #0a0a0a;
+      line-height: 1.4;
+    }
+    h1 { font-size: 16pt; margin-bottom: 4pt; letter-spacing: -0.01em; }
+    h2 {
+      font-size: 9pt;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      margin-top: 14pt;
+      margin-bottom: 6pt;
+      padding-bottom: 3pt;
+      border-bottom: 1px solid #0a0a0a;
+    }
+    table { width: 100%; border-collapse: collapse; }
+    th, td {
+      padding: 4pt 6pt;
+      text-align: left;
+      border-bottom: 1px solid #d4d4d4;
+      vertical-align: middle;
+    }
+    th {
+      font-weight: 700;
+      text-transform: uppercase;
+      font-size: 7pt;
+      letter-spacing: 0.1em;
+      color: #555;
+    }
+    .swatch-cell {
+      display: inline-block;
+      width: 18pt; height: 18pt;
+      vertical-align: middle;
+      border: 1px solid #0a0a0a;
+      margin-right: 6pt;
+    }
+    .meta {
+      display: flex; justify-content: space-between;
+      margin-bottom: 12pt;
+      font-size: 8pt;
+      color: #555;
+    }
+    ul { list-style: none; }
+    li { padding: 2pt 0; }
+    .footer {
+      margin-top: 18pt;
+      padding-top: 6pt;
+      border-top: 1px solid #d4d4d4;
+      font-size: 7pt;
+      color: #888;
+    }
+  </style>
+</head>
+<body>
+
+<div class="meta">
+  <span>{{ brand.brand_name }} — Manufacturing Spec</span>
+  <span>{{ date }}</span>
+</div>
+<h1>Production specifications</h1>
+
+<h2>Color specifications</h2>
+<table>
+  <thead>
+    <tr><th></th><th>Role</th><th>Name</th><th>HEX</th><th>RGB</th><th>CMYK</th><th>Pantone (closest)</th></tr>
+  </thead>
+  <tbody>
+    {% for row in color_rows %}
+    <tr>
+      <td><span class="swatch-cell" style="background: {{ row.hex }};"></span></td>
+      <td>{{ row.role }}</td>
+      <td>{{ row.name }}</td>
+      <td>{{ row.hex }}</td>
+      <td>{{ row.rgb }}</td>
+      <td>{{ row.cmyk }}</td>
+      <td>{{ row.pantone }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+{% if brand.logo %}
+<h2>Logo assets</h2>
+<ul>
+  <li><strong>Primary</strong> — full color, PNG, 1024×1024 — primary brand applications</li>
+  <li><strong>Mono dark</strong> — black on light, PNG — print, embroidery, fax</li>
+  <li><strong>Mono light</strong> — white on dark, PNG — dark backgrounds</li>
+  <li><strong>On-brand</strong> — white on primary color, PNG — brand merchandise</li>
+  <li><strong>Avatar</strong> — square crop, 512×512 — social media profile</li>
+</ul>
+<p style="margin-top: 6pt; color: #555;">
+  Min print size 0.5 in @ 300 DPI. Embroidery: use mono_dark with single-color
+  fill, min 1.5 in width.
+</p>
+{% endif %}
+
+{% if brand.typography %}
+<h2>Typography</h2>
+<table>
+  <thead>
+    <tr><th>Role</th><th>Family</th><th>Weights</th><th>Source</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Display</td>
+      <td>{{ brand.typography.display.family }}</td>
+      <td>{{ brand.typography.display.weights | join(", ") }}</td>
+      <td>{{ brand.typography.display.google_url }}</td>
+    </tr>
+    <tr>
+      <td>Body</td>
+      <td>{{ brand.typography.body.family }}</td>
+      <td>{{ brand.typography.body.weights | join(", ") }}</td>
+      <td>{{ brand.typography.body.google_url }}</td>
+    </tr>
+  </tbody>
+</table>
+<p style="margin-top: 6pt; color: #555;">
+  Google Fonts. License: SIL Open Font License (OFL) — commercial use permitted.
+</p>
+{% endif %}
+
+<h2>Print guidelines</h2>
+<ul>
+  <li>Resolution: 300 DPI (print) · 72 DPI (digital)</li>
+  <li>Color mode: CMYK for print · RGB for screen</li>
+  <li>Bleed: 3 mm beyond trim</li>
+  <li>Safe zone: 5 mm inside trim</li>
+  <li>Recommended substrate: 100–120 gsm uncoated for stationery, 200+ gsm for cards</li>
+</ul>
+
+<div class="footer">
+  Pantone matches are approximate (nearest-neighbor over a 10-color subset).
+  For production color matching, request a Pantone library reference from the
+  agency at print prep stage.
+</div>
+
+</body>
+</html>

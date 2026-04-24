@@ -1,0 +1,259 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ brand.brand_name }} — Brand Guide</title>
+  {% if brand.typography %}
+  <link rel="stylesheet" href="{{ brand.typography.display.google_url }}">
+  <link rel="stylesheet" href="{{ brand.typography.body.google_url }}">
+  {% endif %}
+  <style>
+    :root {
+      --primary:   {{ tokens.primary }};
+      --secondary: {{ tokens.secondary }};
+      --accent:    {{ tokens.accent }};
+      --bg:        {{ tokens.bg }};
+      --fg:        {{ tokens.fg }};
+      --display-family: "{{ brand.typography.display.family if brand.typography else 'Space Grotesk' }}";
+      --body-family:    "{{ brand.typography.body.family if brand.typography else 'Inter' }}";
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body {
+      font-family: var(--body-family), system-ui, sans-serif;
+      color: var(--fg);
+      background: var(--bg);
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+    }
+    h1, h2, h3 {
+      font-family: var(--display-family), system-ui, sans-serif;
+      line-height: 1.1;
+      letter-spacing: -0.01em;
+    }
+    section { padding: 96px 48px; max-width: 1200px; margin: 0 auto; }
+    section + section { border-top: 1px solid color-mix(in srgb, var(--fg) 12%, transparent); }
+    .label {
+      font-family: "JetBrains Mono", monospace;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: color-mix(in srgb, var(--fg) 60%, transparent);
+    }
+    nav {
+      position: sticky; top: 0;
+      background: var(--bg);
+      padding: 16px 48px;
+      border-bottom: 1px solid color-mix(in srgb, var(--fg) 12%, transparent);
+      z-index: 10;
+      display: flex; gap: 24px; align-items: center;
+      font-family: "JetBrains Mono", monospace;
+      font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em;
+    }
+    nav a { color: var(--fg); text-decoration: none; opacity: 0.7; }
+    nav a:hover { opacity: 1; }
+    #hero {
+      background: var(--primary);
+      color: var(--bg);
+      min-height: 90vh;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      max-width: none; padding: 96px 48px;
+    }
+    #hero h1 { font-size: clamp(64px, 12vw, 160px); }
+    #hero p { font-size: 24px; font-style: italic; margin-top: 16px; }
+    .swatches { display: grid; grid-template-columns: repeat(5, 1fr); gap: 16px; margin-top: 32px; }
+    .swatch {
+      aspect-ratio: 1;
+      border-radius: 12px;
+      padding: 16px;
+      display: flex; flex-direction: column; justify-content: flex-end;
+      cursor: pointer;
+      transition: transform 0.2s ease;
+    }
+    .swatch:hover { transform: translateY(-4px); }
+    .swatch.dark { color: var(--bg); }
+    .swatch .name { font-family: var(--display-family); font-size: 24px; }
+    .swatch .hex { font-family: "JetBrains Mono", monospace; font-size: 12px; margin-top: 4px; opacity: 0.8; }
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 32px; }
+    .grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+    .logo-card {
+      aspect-ratio: 1; padding: 32px;
+      display: flex; align-items: center; justify-content: center;
+      border-radius: 12px;
+    }
+    .download-row { display: flex; gap: 16px; flex-wrap: wrap; margin-top: 24px; }
+    .btn {
+      display: inline-block;
+      padding: 14px 24px;
+      background: var(--accent);
+      color: var(--bg);
+      text-decoration: none;
+      font-family: var(--body-family);
+      font-weight: 700;
+      border-radius: 8px;
+    }
+    .toast {
+      position: fixed; bottom: 24px; left: 50%;
+      transform: translateX(-50%) translateY(40px);
+      background: var(--fg); color: var(--bg);
+      padding: 12px 24px; border-radius: 999px;
+      font-family: "JetBrains Mono", monospace; font-size: 12px;
+      opacity: 0; transition: all 0.25s ease;
+      pointer-events: none;
+    }
+    .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  </style>
+</head>
+<body>
+
+<nav>
+  <a href="#hero">{{ brand.brand_name }}</a>
+  <a href="#customer">customer</a>
+  <a href="#identity">identity</a>
+  <a href="#color">color</a>
+  <a href="#type">type</a>
+  <a href="#voice">voice</a>
+  <a href="#applied">applied</a>
+  <a href="#download">download</a>
+</nav>
+
+<section id="hero">
+  {% if brand.logo %}
+  <img src="{{ brand.logo.mono_light }}" alt="" style="height: 160px; object-fit: contain; margin-bottom: 32px;">
+  {% endif %}
+  <h1>{{ brand.brand_name }}</h1>
+  {% if brand.tagline %}<p>{{ brand.tagline }}</p>{% endif %}
+</section>
+
+<section id="customer">
+  <div class="label">Built for</div>
+  <h2 style="font-size: 64px; margin-top: 16px;">{{ persona.name or "Our customer" }}</h2>
+  <p style="font-size: 24px; margin-top: 24px; max-width: 700px; font-family: var(--display-family);">{{ persona.summary }}</p>
+  <div class="grid-2" style="margin-top: 48px;">
+    <div>
+      <div class="label">Interests</div>
+      <ul style="list-style: none; margin-top: 8px;">{% for it in persona.interests %}<li style="padding: 4px 0;">— {{ it }}</li>{% endfor %}</ul>
+    </div>
+    <div>
+      <div class="label">Psychographics</div>
+      <ul style="list-style: none; margin-top: 8px;">{% for ps in persona.psychographics %}<li style="padding: 4px 0;">— {{ ps }}</li>{% endfor %}</ul>
+    </div>
+  </div>
+</section>
+
+{% if brand.logo %}
+<section id="identity">
+  <div class="label">Identity</div>
+  <h2 style="font-size: 64px; margin-top: 16px;">Logo system</h2>
+  <div class="grid-4" style="margin-top: 48px;">
+    <a href="{{ brand.logo.primary }}" download class="logo-card" style="background: #fff; border: 1px solid var(--fg);">
+      <img src="{{ brand.logo.primary }}" alt="primary">
+    </a>
+    <a href="{{ brand.logo.mono_dark }}" download class="logo-card" style="background: #fff; border: 1px solid var(--fg);">
+      <img src="{{ brand.logo.mono_dark }}" alt="mono dark">
+    </a>
+    <a href="{{ brand.logo.mono_light }}" download class="logo-card" style="background: #0a0a0a;">
+      <img src="{{ brand.logo.mono_light }}" alt="mono light">
+    </a>
+    <a href="{{ brand.logo.on_brand }}" download class="logo-card" style="background: var(--primary);">
+      <img src="{{ brand.logo.on_brand }}" alt="on brand">
+    </a>
+  </div>
+  <div class="label" style="margin-top: 16px;">Click any variant to download</div>
+</section>
+{% endif %}
+
+<section id="color">
+  <div class="label">Color</div>
+  <h2 style="font-size: 64px; margin-top: 16px;">Palette</h2>
+  <div class="swatches">
+    {% for c in brand.palette %}
+    <div class="swatch{% if c.role == 'primary' or c.role == 'fg' %} dark{% endif %}"
+         data-hex="{{ c.hex }}" style="background: {{ c.hex }};">
+      <div class="label" style="opacity: 0.8;">{{ c.role }}</div>
+      <div class="name">{{ c.name }}</div>
+      <div class="hex">{{ c.hex }}</div>
+    </div>
+    {% endfor %}
+  </div>
+  <div class="label" style="margin-top: 16px;">Click any swatch to copy hex</div>
+</section>
+
+{% if brand.typography %}
+<section id="type">
+  <div class="label">Type</div>
+  <h2 style="font-size: 64px; margin-top: 16px;">Typography</h2>
+  <div style="margin-top: 48px;">
+    <div class="label">Display · {{ brand.typography.display.family }}</div>
+    <div style="font-size: 144px; line-height: 1;">Aa Bb Cc</div>
+  </div>
+  <div style="margin-top: 48px;">
+    <div class="label">Body · {{ brand.typography.body.family }}</div>
+    <p style="font-size: 18px; max-width: 600px; margin-top: 8px;">
+      The quick brown fox jumps over the lazy dog. Pack my box with five
+      dozen liquor jugs.
+    </p>
+  </div>
+</section>
+{% endif %}
+
+{% if brand.voice %}
+<section id="voice">
+  <div class="label">Voice</div>
+  <p style="font-size: 32px; margin-top: 16px; font-family: var(--display-family); max-width: 700px;">{{ brand.voice.tone }}</p>
+  <div class="grid-2" style="margin-top: 48px;">
+    <div>
+      <div class="label">Do</div>
+      <ul style="list-style: none; margin-top: 8px;">{% for d in brand.voice.do %}<li style="padding: 4px 0;">— {{ d }}</li>{% endfor %}</ul>
+    </div>
+    <div>
+      <div class="label">Don't</div>
+      <ul style="list-style: none; margin-top: 8px;">{% for d in brand.voice.dont %}<li style="padding: 4px 0;">— {{ d }}</li>{% endfor %}</ul>
+    </div>
+  </div>
+</section>
+{% endif %}
+
+{% if brand.mockups %}
+<section id="applied">
+  <div class="label">Applied</div>
+  <h2 style="font-size: 64px; margin-top: 16px;">In the world</h2>
+  <div class="grid-2" style="margin-top: 48px;">
+    {% for m in brand.mockups[:4] %}
+    <img src="{{ m.url }}" alt="{{ m.label }}" style="width: 100%; border-radius: 8px;">
+    {% endfor %}
+  </div>
+</section>
+{% endif %}
+
+<section id="download">
+  <div class="label">Download</div>
+  <h2 style="font-size: 64px; margin-top: 16px;">Get the kit</h2>
+  <div class="download-row">
+    {% if downloads.brand_guide_pdf_url %}<a class="btn" href="{{ downloads.brand_guide_pdf_url }}" download>Brand guide PDF</a>{% endif %}
+    {% if downloads.pitch_deck_pdf_url %}<a class="btn" href="{{ downloads.pitch_deck_pdf_url }}" download>Pitch deck PDF</a>{% endif %}
+    {% if downloads.brand_kit_zip_url %}<a class="btn" href="{{ downloads.brand_kit_zip_url }}" download>Brand kit ZIP</a>{% endif %}
+  </div>
+</section>
+
+<div id="toast" class="toast">copied</div>
+
+<script>
+  document.querySelectorAll('.swatch').forEach(function (el) {
+    el.addEventListener('click', function () {
+      var hex = el.getAttribute('data-hex');
+      if (!navigator.clipboard) return;
+      navigator.clipboard.writeText(hex).then(function () {
+        var t = document.getElementById('toast');
+        t.textContent = 'copied ' + hex;
+        t.classList.add('show');
+        setTimeout(function () { t.classList.remove('show'); }, 1200);
+      });
+    });
+  });
+</script>
+
+</body>
+</html>
