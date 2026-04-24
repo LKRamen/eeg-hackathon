@@ -1,12 +1,25 @@
-export type JobStatus =
-  | "queued"
-  | "scraping"
-  | "synthesizing"
-  | "generating"
-  | "matching"
-  | "generating_pdf"
-  | "done"
-  | "error";
+export interface CreateJobRequest {
+  handle: string;
+  product_idea: string;
+  platform: "instagram";
+}
+
+export interface Post {
+  caption: string;
+  hashtags: string[];
+  like_count: number;
+  comment_count: number;
+  posted_at: string;
+  image_url?: string | null;
+}
+
+export interface RawAudience {
+  bio: string;
+  follower_count: number;
+  posts: Post[];
+  top_hashtags: string[];
+  top_mentioned_accounts: string[];
+}
 
 export interface Persona {
   name: string;
@@ -20,20 +33,29 @@ export interface Persona {
   summary: string;
 }
 
-export interface PaletteColor {
+export interface AgencyMatch {
+  agency_id: string;
+  name: string;
+  blurb: string;
+  specialty_tags: string[];
+  match_score: number;
+  why: string;
+}
+
+export interface Color {
   hex: string;
   role: "primary" | "secondary" | "accent" | "bg" | "fg";
   name: string;
 }
 
-export interface TypographyFace {
+export interface FontSpec {
   family: string;
   google_url: string;
 }
 
 export interface Typography {
-  display: TypographyFace;
-  body: TypographyFace;
+  display: FontSpec;
+  body: FontSpec;
 }
 
 export interface Voice {
@@ -50,50 +72,38 @@ export interface Mockup {
 
 export interface BrandAssets {
   brand_name: string;
+  tagline: string;
   logo_url: string;
-  palette: PaletteColor[];
+  palette: Color[];
   typography: Typography;
   voice: Voice;
   mockups: Mockup[];
-}
-
-export interface AgencyMatch {
-  id: string;
-  name: string;
-  blurb: string;
-  specialty_tags: string[];
-  aesthetic_tags: string[];
-  notable_clients: string[];
-  min_budget: string;
-  website: string;
-  match_score: number;
-  why: string;
 }
 
 export interface BrandResult {
   persona: Persona;
   brand_assets: BrandAssets;
   agency_matches: AgencyMatch[];
-  brand_guide_pdf_url: string | null;
-  error_message?: string;
+  brand_guide_pdf_url: string;
 }
+
+export type JobStatus =
+  | "queued"
+  | "scraping"
+  | "synthesizing"
+  | "generating"
+  | "matching"
+  | "exporting"
+  | "done"
+  | "error";
 
 export interface Job {
   id: string;
   handle: string;
   product_idea: string;
-  platform: "instagram" | "tiktok" | "youtube";
+  platform: string;
   status: JobStatus;
   created_at: string;
-  result: BrandResult | null;
-}
-
-export interface CreateJobRequest {
-  handle: string;
-  product_idea: string;
-  platform: "instagram" | "tiktok" | "youtube";
-}
-
-export interface CreateJobResponse {
-  job_id: string;
+  error_message?: string | null;
+  result?: BrandResult | null;
 }
