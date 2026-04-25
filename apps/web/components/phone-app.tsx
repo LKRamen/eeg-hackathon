@@ -240,7 +240,7 @@ function GeneratingScreen({ jobId, onDone, onError }: {
     poll();
     timerRef.current = setInterval(poll, 1500);
     return () => { if (timerRef.current) clearInterval(timerRef.current); };
-  }, [jobId]);
+  }, [jobId, onDone]);
 
   const step     = STATUS_STEPS[status] ?? STATUS_STEPS.queued;
   const progress = (step.idx / TOTAL_STEPS) * 100;
@@ -283,6 +283,30 @@ function ResultsScreen({ result, onReset }: { result: BrandResult; onReset: () =
     brand.palette.find(c => c.role === 'accent')?.hex ??
     brand.palette.find(c => c.role === 'primary')?.hex ??
     '#c4b5fd';
+  const userProfile = {
+    name: persona.name,
+    handle: `@${brand.brand_name.toLowerCase().replace(/[^a-z0-9]+/g, "")}`,
+    avatar: {
+      initials: persona.name
+        .split(" ")
+        .slice(0, 2)
+        .map((part) => part[0]?.toUpperCase() ?? "")
+        .join(""),
+      bg: `linear-gradient(135deg,${accentColor},#ec4899)`,
+    },
+  };
+  const voiceExamples = brand.voice.examples.length
+    ? brand.voice.examples
+    : [
+        `building ${brand.brand_name} for ${persona.aesthetic_keywords.slice(0, 2).join(" / ")} people who want something that finally feels like them.`,
+        `${brand.brand_name} is my attempt to turn ${persona.summary.toLowerCase()} into a real brand world, not just another product drop.`,
+        `working on ${brand.brand_name}. ${brand.tagline} more soon.`,
+      ];
+  const userVoicePosts = [
+    `building ${brand.brand_name} for people who want ${persona.aesthetic_keywords.slice(0, 2).join(" / ")} energy without losing clarity. finally making the thing i always wanted to exist.`,
+    `${brand.brand_name} is my attempt to turn a rough concept into a full brand world, from visual identity to launch voice, in one focused flow.`,
+    voiceExamples[0],
+  ];
 
   const copy = (key: string, text: string) => {
     navigator.clipboard.writeText(text).catch(() => {});
@@ -460,6 +484,45 @@ function ResultsScreen({ result, onReset }: { result: BrandResult; onReset: () =
           </div>
         </div>
 
+        {/* user voice */}
+        <div style={{ padding: '0 22px', marginBottom: 28 }}>
+          <SectionLabel>user voice</SectionLabel>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
+            <div style={{ width: 34, height: 34, borderRadius: '50%', background: userProfile.avatar.bg, border: '1px solid rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+              <span style={{ fontSize: 11, fontWeight: 700, color: '#fff', fontFamily: 'var(--font-display), serif', fontStyle: 'italic' }}>{userProfile.avatar.initials}</span>
+            </div>
+            <div>
+              <p style={{ fontSize: 12, fontWeight: 600, color: '#f0eef4', marginBottom: 1 }}>{userProfile.name}</p>
+              <p style={{ fontSize: 10, color: 'rgba(240,238,244,0.4)' }}>{userProfile.handle} · launch posts ready</p>
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {userVoicePosts.map((post, i) => {
+              const tweetHref = `https://twitter.com/intent/tweet?text=${encodeURIComponent(post)}`;
+              return (
+                <a
+                  key={i}
+                  href={tweetHref}
+                  target="_blank"
+                  rel="noreferrer"
+                  style={{ textDecoration: 'none' }}
+                >
+                  <div style={{ borderRadius: 14, background: 'rgba(255,255,255,0.025)', border: '1px solid rgba(255,255,255,0.07)', padding: '12px 14px', transition: 'border-color 0.2s, transform 0.2s' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                      <span style={{ fontSize: 10, fontWeight: 700, color: 'rgba(210,190,255,0.72)', letterSpacing: '0.5px' }}>tweet option {i + 1}</span>
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, color: 'rgba(240,238,244,0.35)', fontSize: 10 }}>
+                        post to x <Icon name="arrow" size={9} color="rgba(240,238,244,0.28)" />
+                      </span>
+                    </div>
+                    <p style={{ fontSize: 12, color: '#f0eef4', lineHeight: 1.65 }}>{post}</p>
+                  </div>
+                </a>
+              );
+            })}
+          </div>
+        </div>
+
         {/* start over */}
         <div style={{ padding: '0 22px 40px' }}>
           <button className="btn-ghost" onClick={onReset} style={{ fontSize: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
@@ -474,7 +537,7 @@ function ResultsScreen({ result, onReset }: { result: BrandResult; onReset: () =
 
 // ─── phone shell ──────────────────────────────────────────────────────────────
 
-export function PhoneApp() {
+export function PhoneAppScreen() {
   const [screen, setScreen] = useState<Screen>('input');
   const [jobId,  setJobId]  = useState<string | null>(null);
   const [result, setResult] = useState<BrandResult | null>(null);
@@ -486,28 +549,34 @@ export function PhoneApp() {
   };
 
   return (
+    <div className="phone-screen">
+      <StatusBar/>
+      <ProgressBar current={screen} onBack={s => { if (s === 'input') reset(); }}/>
+
+      {screen === 'input' && (
+        <InputScreen onNext={id => { setJobId(id); setScreen('generating'); }}/>
+      )}
+      {screen === 'generating' && jobId && (
+        <GeneratingScreen
+          jobId={jobId}
+          onDone={r => { setResult(r); setScreen('results'); }}
+          onError={reset}
+        />
+      )}
+      {screen === 'results' && result && (
+        <ResultsScreen result={result} onReset={reset}/>
+      )}
+
+      <HomeIndicator/>
+    </div>
+  );
+}
+
+export function PhoneApp() {
+  return (
     <div className="phone-shell">
       <div className="dynamic-island"/>
-      <div className="phone-screen">
-        <StatusBar/>
-        <ProgressBar current={screen} onBack={s => { if (s === 'input') reset(); }}/>
-
-        {screen === 'input' && (
-          <InputScreen onNext={id => { setJobId(id); setScreen('generating'); }}/>
-        )}
-        {screen === 'generating' && jobId && (
-          <GeneratingScreen
-            jobId={jobId}
-            onDone={r => { setResult(r); setScreen('results'); }}
-            onError={reset}
-          />
-        )}
-        {screen === 'results' && result && (
-          <ResultsScreen result={result} onReset={reset}/>
-        )}
-
-        <HomeIndicator/>
-      </div>
+      <PhoneAppScreen />
     </div>
   );
 }
