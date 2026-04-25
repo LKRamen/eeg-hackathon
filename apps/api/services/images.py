@@ -3,65 +3,94 @@ from __future__ import annotations
 """Visual asset generation.
 
 Image generation strategy:
-  All AI images → Hugging Face Inference API (free tier)
-                  Default model: black-forest-labs/FLUX.1-schnell (Apache 2.0, no cost)
-                  Override via IMAGE_MODEL env var.
+  All AI images → Cloudflare Workers AI (FLUX.1-schnell)
+                  Endpoint: /accounts/{CF_ACCOUNT_ID}/ai/run/@cf/black-forest-labs/flux-1-schnell
+                  Auth: Bearer CF_API_TOKEN
+                  Returns raw image bytes.
 
-  Logo primary   → HF text-to-image → PIL Image
+  Logo primary   → CF text-to-image → PIL Image
   Logo variants  → Pillow processing (mono, on-brand, avatar) — free, instant
-  Mockups        → Canva autofill if templates configured, else HF text-to-image
-  Social kit     → HF for lifestyle/story imagery; Pillow composition for hero/quote
+  Mockups        → Canva autofill if templates configured, else CF text-to-image
+  Social kit     → CF for lifestyle/story imagery; Pillow composition for hero/quote
 
 All images are rehosted in Supabase storage before returning URLs.
 """
 
 import asyncio
+import base64
 import io
+import logging
 from pathlib import Path
 from typing import Literal
 
 import httpx
-from huggingface_hub import AsyncInferenceClient
 from PIL import Image, ImageDraw, ImageFont
+
+_log = logging.getLogger(__name__)
 
 from ..config import get_settings
 from ..models.schemas import LogoVariants, Mockup, Persona, SocialAsset
 from . import canva, storage
 
 # ---------------------------------------------------------------------------
-# HF client
+# Cloudflare Workers AI client
 # ---------------------------------------------------------------------------
 
-_hf_client: AsyncInferenceClient | None = None
+_CF_MODEL = "@cf/black-forest-labs/flux-1-schnell"
 
 
-def _client() -> AsyncInferenceClient:
-    global _hf_client
-    if _hf_client is None:
-        _hf_client = AsyncInferenceClient(token=get_settings().hf_token or None)
-    return _hf_client
-
-
-async def _hf_generate(
+async def _cf_generate(
     prompt: str,
-    negative_prompt: str = "",
+    negative_prompt: str = "",  # FLUX ignores negative_prompt; kept for call-site compat
     width: int = 1024,
     height: int = 1024,
 ) -> Image.Image:
-    """Run text-to-image via HF Inference API, return a PIL Image."""
-    model = get_settings().image_model
-    kwargs: dict = dict(
-        prompt=prompt,
-        model=model,
-        width=width,
-        height=height,
-    )
-    # FLUX.1-schnell ignores negative_prompt; SDXL and others use it
-    if negative_prompt and "flux" not in model.lower():
-        kwargs["negative_prompt"] = negative_prompt
+    """Run text-to-image via Cloudflare Workers AI (FLUX.1-schnell), return PIL Image.
 
-    img = await _client().text_to_image(**kwargs)
-    return img.convert("RGBA")
+    CF Workers AI REST API returns a JSON envelope:
+      {"result": {"image": "<base64 PNG>"}, "success": true, ...}
+    This function handles both that format and raw-bytes responses defensively.
+    """
+    settings = get_settings()
+    url = (
+        f"https://api.cloudflare.com/client/v4/accounts/"
+        f"{settings.cf_account_id}/ai/run/{_CF_MODEL}"
+    )
+    body: dict = {"prompt": prompt, "num_steps": 4, "width": width, "height": height}
+
+    _log.info("CF generate → %s  w=%d h=%d  prompt=%.80s…", _CF_MODEL, width, height, prompt)
+
+    async with httpx.AsyncClient(timeout=120) as client:
+        resp = await client.post(
+            url,
+            json=body,
+            headers={"Authorization": f"Bearer {settings.cf_api_token}"},
+        )
+
+    _log.info("CF response: status=%d content-type=%s len=%d",
+              resp.status_code, resp.headers.get("content-type"), len(resp.content))
+
+    if not resp.is_success:
+        _log.error("CF API error body: %s", resp.text[:400])
+        resp.raise_for_status()
+
+    content_type = resp.headers.get("content-type", "")
+    if "json" in content_type or resp.content[:1] == b"{":
+        # JSON envelope: {"result": {"image": "<base64>"}, "success": true}
+        data = resp.json()
+        if not data.get("success", True):
+            raise RuntimeError(f"CF API returned success=false: {data.get('errors')}")
+        b64 = (data.get("result") or {}).get("image") or data.get("image", "")
+        if not b64:
+            raise RuntimeError(f"CF API JSON had no image field: {list(data.keys())}")
+        img_bytes = base64.b64decode(b64)
+        _log.info("CF image decoded from base64, %d bytes", len(img_bytes))
+    else:
+        # Raw binary response
+        img_bytes = resp.content
+        _log.info("CF image received as raw bytes, %d bytes", len(img_bytes))
+
+    return Image.open(io.BytesIO(img_bytes)).convert("RGBA")
 
 
 # ---------------------------------------------------------------------------
@@ -311,21 +340,18 @@ async def generate_logo_set(
     brand_color_hex: str,
     job_id: str,
 ) -> LogoVariants:
-    """Generate primary logo via HF if token set, else Pillow wordmark. Derive 4 variants."""
-    import logging as _log
-    _logger = _log.getLogger(__name__)
-
-    hf_token = get_settings().hf_token
-    if hf_token:
+    """Generate primary logo via Cloudflare Workers AI if credentials set, else Pillow wordmark."""
+    settings = get_settings()
+    if settings.cf_account_id and settings.cf_api_token:
         try:
             prompt = _logo_prompt(brand_name, product_idea, persona)
-            primary = await _hf_generate(prompt)
-            _logger.info("HF logo generated for %s", brand_name)
+            primary = await _cf_generate(prompt)
+            _log.info("CF logo generated for %s", brand_name)
         except Exception as exc:
-            _logger.warning("HF logo generation failed (%s) — using Pillow wordmark", exc)
+            _log.warning("CF logo generation failed — using Pillow wordmark. Error: %s", exc, exc_info=True)
             primary = _pillow_wordmark(brand_name, brand_color_hex)
     else:
-        _logger.info("No HF_TOKEN — using Pillow wordmark for %s", brand_name)
+        _log.info("No CF credentials — using Pillow wordmark for %s", brand_name)
         primary = _pillow_wordmark(brand_name, brand_color_hex)
 
     mono_dark = _to_mono(primary, (0, 0, 0))
@@ -404,14 +430,14 @@ def _mockup_prompt(
     ), 1024, 1024
 
 
-async def _generate_mockup_hf(
+async def _generate_mockup_cf(
     label: _MockupLabel,
     persona: Persona,
     job_id: str,
     brand_color_hex: str = "#1a1a1a",
 ) -> Mockup:
     prompt, w, h = _mockup_prompt(label, persona, brand_color_hex)
-    img = await _hf_generate(prompt, negative_prompt=_MOCKUP_NEGATIVE, width=w, height=h)
+    img = await _cf_generate(prompt, negative_prompt=_MOCKUP_NEGATIVE, width=w, height=h)
     url = await storage.upload_pil(img, "brand-assets", f"jobs/{job_id}/mockup_{label}.png")
     return Mockup(label=label, url=url)
 
@@ -430,7 +456,7 @@ async def _generate_mockup_canva(
         url = await storage.upload_url(png_url, "brand-assets", f"jobs/{job_id}/mockup_{label}.png")
         return Mockup(label=label, url=url)
     except Exception:
-        return await _generate_mockup_hf(label, persona, job_id, brand_color_hex)
+        return await _generate_mockup_cf(label, persona, job_id, brand_color_hex)
 
 
 async def _generate_mockup_pillow(
@@ -468,14 +494,14 @@ async def generate_mockups(
     if include is None:
         include = ["tee", "tote"]
 
-    hf_token = get_settings().hf_token
+    settings = get_settings()
     template_ids = canva.mockup_template_ids() if canva.is_configured() else []
     tasks = []
     for i, label in enumerate(include):
         if template_ids and i < len(template_ids):
             tasks.append(_generate_mockup_canva(label, persona, template_ids[i], job_id, brand_color_hex))
-        elif hf_token:
-            tasks.append(_generate_mockup_hf(label, persona, job_id, brand_color_hex))
+        elif settings.cf_account_id and settings.cf_api_token:
+            tasks.append(_generate_mockup_cf(label, persona, job_id, brand_color_hex))
         else:
             tasks.append(_generate_mockup_pillow(label, brand_name, brand_color_hex, job_id))
 
@@ -522,7 +548,7 @@ def _compose_text_post(
     return bg
 
 
-async def _lifestyle_hf(persona: Persona, width: int, height: int, job_id: str, label: str) -> str:
+async def _lifestyle_cf(persona: Persona, width: int, height: int, job_id: str, label: str) -> str:
     kw = persona.aesthetic_keywords
     kw_str = kw[0] if kw else "minimal"
     scene_map = {
@@ -545,7 +571,7 @@ async def _lifestyle_hf(persona: Persona, width: int, height: int, job_id: str, 
         f"i-D magazine aesthetic, brand campaign quality. "
         f"4k photorealistic, cinematic color grading, intentional negative space."
     )
-    img = await _hf_generate(prompt, negative_prompt=_SOCIAL_NEGATIVE, width=width, height=height)
+    img = await _cf_generate(prompt, negative_prompt=_SOCIAL_NEGATIVE, width=width, height=height)
     return await storage.upload_pil(img, "brand-assets", f"jobs/{job_id}/social_{label}.png")
 
 
@@ -616,10 +642,10 @@ async def generate_social_kit(
                 return SocialAsset(label="ig_post_lifestyle", url=url, format="ig_square")
             except Exception:
                 pass
-        hf_tok = get_settings().hf_token
-        if hf_tok:
+        cf = get_settings()
+        if cf.cf_account_id and cf.cf_api_token:
             try:
-                url = await _lifestyle_hf(persona, 1024, 1024, job_id, "ig_post_lifestyle")
+                url = await _lifestyle_cf(persona, 1024, 1024, job_id, "ig_post_lifestyle")
                 return SocialAsset(label="ig_post_lifestyle", url=url, format="ig_square")
             except Exception:
                 pass
@@ -645,10 +671,10 @@ async def generate_social_kit(
         return SocialAsset(label="ig_story_launch", url=url, format="ig_story")
 
     async def _story_closeup() -> SocialAsset:
-        hf_tok = get_settings().hf_token
-        if hf_tok:
+        cf = get_settings()
+        if cf.cf_account_id and cf.cf_api_token:
             try:
-                url = await _lifestyle_hf(persona, 768, 1344, job_id, "ig_story_closeup")
+                url = await _lifestyle_cf(persona, 768, 1344, job_id, "ig_story_closeup")
                 return SocialAsset(label="ig_story_closeup", url=url, format="ig_story")
             except Exception:
                 pass

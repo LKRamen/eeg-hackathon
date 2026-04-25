@@ -46,7 +46,7 @@ function clamp(n: number, min: number, max: number) {
 
 export function BrandKitSlides({ result, className }: Props) {
   const [idx, setIdx] = useState(0);
-  const [scale, setScale] = useState(1);
+  const [scale, setScale] = useState<number | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
 
   const brand = result.brand_assets;
@@ -63,10 +63,11 @@ export function BrandKitSlides({ result, className }: Props) {
 
     const update = () => {
       const w = el.clientWidth;
-      const h = el.clientHeight;
-      if (!w || !h) return;
+      if (!w) return;
+      // height is set by aspect-ratio 16/9 CSS; derive it from width if not yet painted
+      const h = el.clientHeight || w * (9 / 16);
       const next = Math.min(w / 1920, h / 1080);
-      setScale(clamp(next, 0.25, 1));
+      setScale(clamp(next, 0.1, 1));
     };
 
     update();
@@ -108,6 +109,21 @@ export function BrandKitSlides({ result, className }: Props) {
 
   const social = brand.social_kit ?? [];
   const mockups = brand.mockups ?? [];
+
+  // DEBUG: log all image src values — remove after confirming images render
+  if (typeof window !== "undefined") {
+    console.log("[BrandKit] image srcs", {
+      primaryLogo,
+      monoDark,
+      monoLight,
+      onBrand,
+      mockup0: mockups[0]?.url,
+      mockup1: mockups[1]?.url,
+      social0: social[0]?.url,
+      social2: social[2]?.url,
+      social4: social[4]?.url,
+    });
+  }
 
   const heroImg =
     social[2]?.url ??
@@ -1008,7 +1024,7 @@ export function BrandKitSlides({ result, className }: Props) {
       </div>
 
       <div className="mt-5 bk-stage" ref={containerRef}>
-        <div className="bk-inner" style={{ transform: `scale(${scale})` }}>
+        <div className="bk-inner" style={{ transform: scale !== null ? `scale(${scale})` : "scale(0)", visibility: scale !== null ? "visible" : "hidden" }}>
           {idx === 0 && (
             <section className="slide s01">
               <span className="bm">{brand.brand_name}</span>

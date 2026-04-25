@@ -26,5 +26,5 @@ app.include_router(jobs.router)
 
 # Serve cached demo assets (logos, mockups, social PNGs) under /static/{handle}/...
 _CACHE_DIR = Path(__file__).resolve().parent / "cache"
-if _CACHE_DIR.exists():
-    app.mount("/static", StaticFiles(directory=str(_CACHE_DIR)), name="static")
+_CACHE_DIR.mkdir(exist_ok=True)
+app.mount("/static", StaticFiles(directory=str(_CACHE_DIR)), name="static")

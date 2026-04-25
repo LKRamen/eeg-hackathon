@@ -34,7 +34,7 @@ from services.images import (
     _MOCKUP_NEGATIVE,
     _SOCIAL_NEGATIVE,
     _compose_text_post,
-    _hf_generate,
+    _cf_generate,
     _hex_to_rgb,
     _logo_prompt,
     _mockup_prompt,
@@ -85,7 +85,7 @@ async def _gen_logo(label: str, extra: str) -> Path:
         return dest
     base = _logo_prompt(BRAND_NAME, PRODUCT, DEMO_PERSONA)
     prompt = f"{base} {extra}".strip() if extra else base
-    img = await _hf_generate(prompt)
+    img = await _cf_generate(prompt)
     img.convert("RGB").save(dest)
     print(f"  logo_{label} saved")
     return dest
@@ -100,7 +100,7 @@ async def _gen_mockup(label: str, idx: int) -> Path:
     if dest.exists():
         return dest
     prompt, w, h = _mockup_prompt(label, DEMO_PERSONA)
-    img = await _hf_generate(prompt, negative_prompt=_MOCKUP_NEGATIVE, width=w, height=h)
+    img = await _cf_generate(prompt, negative_prompt=_MOCKUP_NEGATIVE, width=w, height=h)
     img.convert("RGB").save(dest)
     print(f"  mockup_{label}_{idx} saved")
     return dest
@@ -170,10 +170,10 @@ async def _gen_social(logo_path: Path) -> list[tuple[str, Path]]:
     if need_lifestyle or need_closeup:
         tasks = []
         if need_lifestyle:
-            tasks.append(_hf_generate(lifestyle_prompt, negative_prompt=_SOCIAL_NEGATIVE,
+            tasks.append(_cf_generate(lifestyle_prompt, negative_prompt=_SOCIAL_NEGATIVE,
                                       width=1024, height=1024))
         if need_closeup:
-            tasks.append(_hf_generate(closeup_prompt, width=768, height=1344))
+            tasks.append(_cf_generate(closeup_prompt, width=768, height=1344))
 
         generated = await asyncio.gather(*tasks)
         gi = iter(generated)

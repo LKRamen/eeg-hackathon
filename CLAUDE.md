@@ -74,7 +74,9 @@ pnpm dev                     # http://localhost:3000
 | Variable | Purpose |
 |---|---|
 | `OPENAI_API_KEY` | Persona synthesis, palette, voice, brand names, embeddings |
-| `REPLICATE_API_TOKEN` | FLUX schnell — logo + lifestyle image generation |
+| `CF_ACCOUNT_ID` | Cloudflare account ID — image generation via Workers AI |
+| `CF_API_TOKEN` | Cloudflare API token — image generation via Workers AI |
+| `REPLICATE_API_TOKEN` | Replicate API token (unused by default; reserved) |
 | `CANVA_CLIENT_ID` | Canva Connect API OAuth client ID |
 | `CANVA_CLIENT_SECRET` | Canva Connect API OAuth client secret |
 | `CANVA_SOCIAL_TEMPLATE_IDS` | Comma-separated Canva brand template IDs for social posts |

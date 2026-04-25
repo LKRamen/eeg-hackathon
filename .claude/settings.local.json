@@ -23,7 +23,16 @@
       "Bash(echo \"Web PID: $!\")",
       "Read(//tmp/**)",
       "Bash(npx tsc *)",
-      "Bash(node_modules/.bin/tsc --noEmit)"
+      "Bash(node_modules/.bin/tsc --noEmit)",
+      "Bash(uvicorn main:app --reload)",
+      "Bash(pnpm dev *)",
+      "PowerShell(cd \"C:\\\\Users\\\\lkrah\\\\eeg-hackathon\\\\apps\\\\api\"; Start-Process powershell -ArgumentList \"-NoExit\", \"-Command\", \"cd 'C:\\\\Users\\\\lkrah\\\\eeg-hackathon\\\\apps\\\\api'; uvicorn main:app --reload\" -WindowStyle Normal)",
+      "PowerShell(cd \"C:\\\\Users\\\\lkrah\\\\eeg-hackathon\\\\apps\\\\web\"; Start-Process powershell -ArgumentList \"-NoExit\", \"-Command\", \"cd 'C:\\\\Users\\\\lkrah\\\\eeg-hackathon\\\\apps\\\\web'; pnpm dev\" -WindowStyle Normal)",
+      "PowerShell(pip *)",
+      "Bash(curl -s http://localhost:8000/health)",
+      "Bash(curl *)",
+      "mcp__claude_ai_Supabase__list_projects",
+      "Bash(python3 -c ' *)"
     ]
   }
 }
