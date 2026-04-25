@@ -54,7 +54,7 @@ def _rescale(cosine: float) -> float:
 
 async def _get_embedding(client: AsyncOpenAI, text: str) -> np.ndarray:
     resp = await client.embeddings.create(
-        model="text-embedding-3-small",
+        model="text-embedding-ada-002",
         input=text,
     )
     return np.array(resp.data[0].embedding, dtype=np.float32)
