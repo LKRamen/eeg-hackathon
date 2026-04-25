@@ -141,7 +141,7 @@ async def match(persona: Persona) -> list[AgencyMatch]:
 
         matches.append(
             AgencyMatch(
-                id=agency["id"],
+                agency_id=agency["id"],
                 name=agency["name"],
                 blurb=agency["blurb"],
                 specialty_tags=agency.get("specialty_tags", []),
