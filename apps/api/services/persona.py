@@ -10,7 +10,7 @@ from ..models.schemas import NetworkInsights, Persona, RawAudience
 
 logger = logging.getLogger(__name__)
 
-MODEL = "claude-3-haiku-20240307"
+MODEL = "claude-haiku-4-5-20251001"
 
 _BANNED_PHRASES = [
     "tech-savvy",

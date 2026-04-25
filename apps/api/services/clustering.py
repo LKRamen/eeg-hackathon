@@ -14,7 +14,7 @@ from anthropic import AsyncAnthropic
 
 from ..config import get_settings
 
-MODEL = "claude-3-haiku-20240307"
+MODEL = "claude-haiku-4-5-20251001"
 
 _CLUSTERS = [
     "fitness_wellness",

@@ -11,7 +11,7 @@ from anthropic import AsyncAnthropic
 from ..config import get_settings
 from ..models.schemas import AgencyMatch, Persona
 
-MODEL = "claude-3-haiku-20240307"
+MODEL = "claude-haiku-4-5-20251001"
 
 logger = logging.getLogger(__name__)
 
