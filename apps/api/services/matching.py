@@ -8,8 +8,8 @@ from typing import Any
 import numpy as np
 from openai import AsyncOpenAI
 
-from config import get_settings
-from models.schemas import AgencyMatch, Persona
+from ..config import get_settings
+from ..models.schemas import AgencyMatch, Persona
 
 logger = logging.getLogger(__name__)
 
