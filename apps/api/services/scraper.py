@@ -7,7 +7,7 @@ import re
 from collections import Counter
 from pathlib import Path
 
-from models.schemas import NetworkProfile, RawAudience, RawAudiencePost
+from ..models.schemas import NetworkProfile, RawAudience, RawAudiencePost
 
 logger = logging.getLogger(__name__)
 
