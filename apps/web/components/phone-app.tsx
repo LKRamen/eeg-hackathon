@@ -12,6 +12,8 @@ interface AgencyMatch {
   agency_id: string; name: string; blurb: string;
   specialty_tags: string[]; match_score: number; why: string;
 }
+interface FontSpec { family: string; google_url: string; }
+interface Mockup   { label: string; url: string; }
 interface BrandResult {
   persona: {
     name: string; age_range: string; summary: string;
@@ -21,7 +23,9 @@ interface BrandResult {
   brand_assets: {
     brand_name: string; tagline: string; logo_url: string;
     palette: Color[];
+    typography: { display: FontSpec; body: FontSpec; };
     voice: { tone: string; do: string[]; dont: string[]; examples: string[]; };
+    mockups: Mockup[];
   };
   agency_matches: AgencyMatch[];
 }
@@ -203,7 +207,7 @@ function InputScreen({ onNext }: { onNext: (jobId: string) => void }) {
 const STATUS_STEPS: Record<string, { label: string; idx: number }> = {
   queued:       { label: 'queued…',                idx: 0 },
   scraping:     { label: 'reading your profile…',  idx: 1 },
-  synthesizing: { label: 'building your persona…', idx: 2 },
+  synthesizing: { label: 'analyzing your tone…',   idx: 2 },
   generating:   { label: 'generating brand kit…',  idx: 3 },
   matching:     { label: 'matching agencies…',      idx: 4 },
   exporting:    { label: 'finishing up…',           idx: 5 },
@@ -273,40 +277,16 @@ function GeneratingScreen({ jobId, onDone, onError }: {
   );
 }
 
-// ─── screen 3 — results (real BrandResult) ────────────────────────────────────
+// ─── screen 3 — brand deliverables deck ──────────────────────────────────────
 
 function ResultsScreen({ result, onReset }: { result: BrandResult; onReset: () => void }) {
   const [copied, setCopied] = useState<string | null>(null);
-  const { brand_assets: brand, persona, agency_matches } = result;
+  const { brand_assets: brand } = result;
 
   const accentColor =
     brand.palette.find(c => c.role === 'accent')?.hex ??
     brand.palette.find(c => c.role === 'primary')?.hex ??
     '#c4b5fd';
-  const userProfile = {
-    name: persona.name,
-    handle: `@${brand.brand_name.toLowerCase().replace(/[^a-z0-9]+/g, "")}`,
-    avatar: {
-      initials: persona.name
-        .split(" ")
-        .slice(0, 2)
-        .map((part) => part[0]?.toUpperCase() ?? "")
-        .join(""),
-      bg: `linear-gradient(135deg,${accentColor},#ec4899)`,
-    },
-  };
-  const voiceExamples = brand.voice.examples.length
-    ? brand.voice.examples
-    : [
-        `building ${brand.brand_name} for ${persona.aesthetic_keywords.slice(0, 2).join(" / ")} people who want something that finally feels like them.`,
-        `${brand.brand_name} is my attempt to turn ${persona.summary.toLowerCase()} into a real brand world, not just another product drop.`,
-        `working on ${brand.brand_name}. ${brand.tagline} more soon.`,
-      ];
-  const userVoicePosts = [
-    `building ${brand.brand_name} for people who want ${persona.aesthetic_keywords.slice(0, 2).join(" / ")} energy without losing clarity. finally making the thing i always wanted to exist.`,
-    `${brand.brand_name} is my attempt to turn a rough concept into a full brand world, from visual identity to launch voice, in one focused flow.`,
-    voiceExamples[0],
-  ];
 
   const copy = (key: string, text: string) => {
     navigator.clipboard.writeText(text).catch(() => {});
@@ -323,77 +303,41 @@ function ResultsScreen({ result, onReset }: { result: BrandResult; onReset: () =
     </button>
   );
 
-  const hues = [accentColor, 'rgba(125,211,252,0.9)', 'rgba(249,168,212,0.9)'];
-
   return (
     <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
 
-      {/* ── hero header ── */}
-      <div style={{ flexShrink: 0, position: 'relative', zIndex: 5 }}>
-        <div style={{ background: 'linear-gradient(135deg,#1a1025,#0f0e13)', padding: '72px 22px 18px', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
-          <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between' }}>
-            <div>
-              <p style={{ fontSize: 9, color: 'rgba(255,255,255,0.4)', fontWeight: 600, letterSpacing: '1px', marginBottom: 6 }}>YOUR BRAND KIT</p>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
-                <div style={{ width: 32, height: 32, borderRadius: 10, background: `${accentColor}22`, border: `1px solid ${accentColor}44`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  {brand.logo_url ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={brand.logo_url} alt="logo" style={{ width: 20, height: 20, objectFit: 'contain' }}/>
-                  ) : (
-                    <LogoMark size={16} color={accentColor}/>
-                  )}
-                </div>
-                <span style={{ fontFamily: 'var(--font-display), serif', fontStyle: 'italic', fontSize: 26, color: '#f0eef4', letterSpacing: '-0.5px' }}>{brand.brand_name}</span>
-              </div>
-              <p style={{ fontSize: 10, color: 'rgba(255,255,255,0.45)' }}>{brand.tagline}</p>
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 6, alignItems: 'flex-end' }}>
-              <span style={{ fontSize: 9, color: 'rgba(210,190,255,0.9)', background: 'rgba(210,190,255,0.15)', padding: '3px 8px', borderRadius: 5, fontWeight: 700, letterSpacing: '0.8px' }}>LIVE</span>
-              <button style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '6px 10px', borderRadius: 8, background: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.15)', color: '#fff', fontSize: 10, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
-                <Icon name="package" size={10} color="#fff"/> download all
-              </button>
-            </div>
+      {/* ── hero ── */}
+      <div style={{ flexShrink: 0, background: 'linear-gradient(135deg,#1a1025,#0f0e13)', padding: '72px 22px 18px', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+        <p style={{ fontSize: 9, color: 'rgba(255,255,255,0.4)', fontWeight: 600, letterSpacing: '1px', marginBottom: 8 }}>YOUR BRAND KIT</p>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
+          <div style={{ width: 36, height: 36, borderRadius: 11, background: `${accentColor}22`, border: `1px solid ${accentColor}44`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+            {brand.logo_url
+              // eslint-disable-next-line @next/next/no-img-element
+              ? <img src={brand.logo_url} alt="logo" style={{ width: 22, height: 22, objectFit: 'contain' }}/>
+              : <LogoMark size={16} color={accentColor}/>}
+          </div>
+          <div>
+            <span style={{ fontFamily: 'var(--font-display), serif', fontStyle: 'italic', fontSize: 24, color: '#f0eef4', letterSpacing: '-0.5px' }}>{brand.brand_name}</span>
+            <p style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)', marginTop: 1 }}>{brand.tagline}</p>
           </div>
         </div>
       </div>
 
-      {/* ── scrollable content ── */}
+      {/* ── scrollable deck ── */}
       <div style={{ flex: 1, overflowY: 'auto', scrollbarWidth: 'none' as const }}>
 
-        {/* persona card */}
+        {/* 01 — color palette */}
         <div style={{ padding: '18px 22px 0' }}>
-          <SectionLabel>your audience persona</SectionLabel>
-          <div style={{ background: 'rgba(255,255,255,0.025)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 16, padding: 14, marginBottom: 18 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
-              <div style={{ width: 40, height: 40, borderRadius: '50%', background: `${accentColor}25`, border: `1.5px solid ${accentColor}50`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                <span style={{ fontSize: 16, fontWeight: 700, color: accentColor, fontFamily: 'var(--font-display), serif', fontStyle: 'italic' }}>{persona.name[0]}</span>
-              </div>
-              <div>
-                <p style={{ fontSize: 14, fontWeight: 600, color: '#f0eef4' }}>{persona.name}</p>
-                <p style={{ fontSize: 10, color: 'rgba(240,238,244,0.4)' }}>{persona.age_range}</p>
-              </div>
-            </div>
-            <p style={{ fontSize: 11, color: 'rgba(240,238,244,0.55)', lineHeight: 1.6, marginBottom: 10, fontStyle: 'italic' }}>&ldquo;{persona.summary}&rdquo;</p>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
-              {persona.aesthetic_keywords.map((k, i) => (
-                <span key={i} style={{ fontSize: 9, padding: '3px 8px', borderRadius: 20, background: `${accentColor}18`, border: `1px solid ${accentColor}35`, color: accentColor }}>{k}</span>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        {/* brand palette */}
-        <div style={{ padding: '0 22px', marginBottom: 18 }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-            <SectionLabel>brand palette</SectionLabel>
-            <DownloadChip label=".ase file"/>
+            <SectionLabel>01 · color palette</SectionLabel>
+            <DownloadChip label=".ase"/>
           </div>
-          <div style={{ display: 'flex', gap: 5 }}>
+          <div style={{ display: 'flex', gap: 5, marginBottom: 18 }}>
             {brand.palette.map((c, i) => (
-              <div key={i} style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 5 }}>
+              <div key={i} style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 4 }}>
                 <div
                   onClick={() => copy(`color-${i}`, c.hex)}
-                  style={{ width: '100%', height: 52, borderRadius: 10, background: c.hex, boxShadow: '0 4px 12px rgba(0,0,0,0.4)', cursor: 'pointer', position: 'relative', overflow: 'hidden' }}
+                  style={{ width: '100%', height: 50, borderRadius: 10, background: c.hex, cursor: 'pointer', position: 'relative', overflow: 'hidden', boxShadow: '0 4px 12px rgba(0,0,0,0.35)' }}
                 >
                   {copied === `color-${i}` && (
                     <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.3)' }}>
@@ -401,123 +345,98 @@ function ResultsScreen({ result, onReset }: { result: BrandResult; onReset: () =
                     </div>
                   )}
                 </div>
-                <p style={{ fontSize: 7.5, color: 'rgba(240,238,244,0.45)', fontFamily: 'monospace', textAlign: 'center', lineHeight: 1.3 }}>{c.name}<br/>{c.hex}</p>
+                <p style={{ fontSize: 7, color: 'rgba(240,238,244,0.4)', fontFamily: 'monospace', textAlign: 'center', lineHeight: 1.4 }}>{c.name}<br/>{c.hex}</p>
               </div>
             ))}
           </div>
-          <p style={{ fontSize: 9, color: 'rgba(240,238,244,0.25)', marginTop: 6, textAlign: 'center' }}>tap a swatch to copy hex</p>
         </div>
 
-        {/* agency matches */}
-        <div style={{ padding: '0 22px', marginBottom: 18 }}>
-          <SectionLabel>matched agencies</SectionLabel>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            {agency_matches.slice(0, 3).map((a, i) => {
-              const hue = hues[i] ?? accentColor;
-              return (
-                <div key={a.agency_id} style={{ borderRadius: 16, background: 'rgba(255,255,255,0.025)', border: '1px solid rgba(255,255,255,0.07)', overflow: 'hidden' }}>
-                  <div style={{ display: 'flex', gap: 12, alignItems: 'center', padding: '12px 14px 8px' }}>
-                    <div style={{ width: 40, height: 40, borderRadius: 12, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                      <Icon name="users" size={15} color={hue}/>
-                    </div>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 2 }}>
-                        <p style={{ fontSize: 13, fontWeight: 600, color: '#f0eef4' }}>{a.name}</p>
-                        <span style={{ fontSize: 10, fontWeight: 700, color: hue, background: 'rgba(255,255,255,0.06)', padding: '2px 6px', borderRadius: 5 }}>{Math.round(a.match_score)}%</span>
-                      </div>
-                      <p style={{ fontSize: 10, color: 'rgba(240,238,244,0.35)', lineHeight: 1.4, fontStyle: 'italic' }}>{a.why}</p>
-                    </div>
-                  </div>
-                  <div style={{ padding: '0 14px 10px', display: 'flex', flexWrap: 'wrap', gap: 4 }}>
-                    {a.specialty_tags.slice(0, 3).map((t, j) => (
-                      <span key={j} style={{ fontSize: 9, padding: '2px 7px', borderRadius: 20, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', color: 'rgba(240,238,244,0.4)' }}>{t}</span>
-                    ))}
-                  </div>
+        {/* 02 — typography */}
+        {brand.typography && (
+          <div style={{ padding: '0 22px', marginBottom: 18 }}>
+            <SectionLabel>02 · typography</SectionLabel>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+              {[
+                { label: 'display', spec: brand.typography.display },
+                { label: 'body',    spec: brand.typography.body    },
+              ].map(({ label, spec }) => (
+                <div key={label} style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 12, padding: '12px 12px 10px' }}>
+                  <p style={{ fontSize: 8, fontWeight: 700, letterSpacing: '0.9px', textTransform: 'uppercase', color: 'rgba(240,238,244,0.25)', marginBottom: 6 }}>{label}</p>
+                  <p style={{ fontSize: 18, fontWeight: label === 'display' ? 700 : 400, color: '#f0eef4', lineHeight: 1.1, marginBottom: 6, letterSpacing: label === 'display' ? '-0.5px' : '0' }}>Aa</p>
+                  <p style={{ fontSize: 9, color: accentColor, fontWeight: 600 }}>{spec.family}</p>
                 </div>
-              );
-            })}
+              ))}
+            </div>
           </div>
-        </div>
+        )}
 
-        {/* brand voice / social copy */}
-        <div style={{ padding: '0 22px', marginBottom: 28 }}>
-          <SectionLabel>brand voice · social copy</SectionLabel>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {brand.voice.examples.map((ex, i) => {
-              const icons     = ['X', '◎', '♪'];
-              const platforms = ['x', 'ig', 'tt'];
-              return (
-                <div key={i} style={{ borderRadius: 14, background: 'rgba(255,255,255,0.025)', border: '1px solid rgba(255,255,255,0.07)', padding: '12px 14px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                      <span style={{ fontSize: 11, fontWeight: 800, color: 'rgba(240,238,244,0.5)', fontFamily: 'monospace' }}>{icons[i % 3]}</span>
-                      <span style={{ fontSize: 10, fontWeight: 600, color: 'rgba(240,238,244,0.4)', letterSpacing: '0.3px' }}>{platforms[i % 3]}</span>
-                    </div>
-                    <CopyBtn k={`post-${i}`} text={ex}/>
-                  </div>
-                  <p style={{ fontSize: 12, color: '#f0eef4', lineHeight: 1.65 }}>{ex}</p>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* voice tone */}
+        {/* 03 — brand voice */}
         <div style={{ padding: '0 22px', marginBottom: 18 }}>
-          <SectionLabel>voice tone</SectionLabel>
-          <div style={{ background: 'rgba(255,255,255,0.025)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 14, padding: '12px 14px' }}>
-            <p style={{ fontSize: 12, color: 'rgba(240,238,244,0.6)', fontStyle: 'italic', marginBottom: 10 }}>{brand.voice.tone}</p>
+          <SectionLabel>03 · brand voice</SectionLabel>
+          <div style={{ background: 'rgba(255,255,255,0.025)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 14, padding: '12px 14px', marginBottom: 8 }}>
+            <p style={{ fontSize: 11, color: 'rgba(240,238,244,0.65)', fontStyle: 'italic', marginBottom: 10, lineHeight: 1.5 }}>{brand.voice.tone}</p>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
               <div>
-                <p style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.8px', color: 'rgba(120,220,120,0.7)', marginBottom: 6 }}>DO</p>
-                {brand.voice.do.slice(0, 2).map((d, i) => (
-                  <p key={i} style={{ fontSize: 10, color: 'rgba(240,238,244,0.4)', lineHeight: 1.5, marginBottom: 4 }}>+ {d}</p>
+                <p style={{ fontSize: 8, fontWeight: 700, letterSpacing: '0.8px', color: 'rgba(120,220,120,0.8)', marginBottom: 5 }}>DO</p>
+                {brand.voice.do.slice(0, 3).map((d, i) => (
+                  <p key={i} style={{ fontSize: 9.5, color: 'rgba(240,238,244,0.45)', lineHeight: 1.5, marginBottom: 3 }}>+ {d}</p>
                 ))}
               </div>
               <div>
-                <p style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.8px', color: 'rgba(255,100,100,0.7)', marginBottom: 6 }}>{"DON'T"}</p>
-                {brand.voice.dont.slice(0, 2).map((d, i) => (
-                  <p key={i} style={{ fontSize: 10, color: 'rgba(240,238,244,0.4)', lineHeight: 1.5, marginBottom: 4 }}>− {d}</p>
+                <p style={{ fontSize: 8, fontWeight: 700, letterSpacing: '0.8px', color: 'rgba(255,100,100,0.8)', marginBottom: 5 }}>{"DON'T"}</p>
+                {brand.voice.dont.slice(0, 3).map((d, i) => (
+                  <p key={i} style={{ fontSize: 9.5, color: 'rgba(240,238,244,0.45)', lineHeight: 1.5, marginBottom: 3 }}>− {d}</p>
                 ))}
               </div>
             </div>
           </div>
         </div>
 
-        {/* user voice */}
-        <div style={{ padding: '0 22px', marginBottom: 28 }}>
-          <SectionLabel>user voice</SectionLabel>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
-            <div style={{ width: 34, height: 34, borderRadius: '50%', background: userProfile.avatar.bg, border: '1px solid rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-              <span style={{ fontSize: 11, fontWeight: 700, color: '#fff', fontFamily: 'var(--font-display), serif', fontStyle: 'italic' }}>{userProfile.avatar.initials}</span>
+        {/* 04 — merchandise */}
+        {brand.mockups && brand.mockups.length > 0 && (
+          <div style={{ padding: '0 22px', marginBottom: 18 }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+              <SectionLabel>04 · merchandise</SectionLabel>
+              <DownloadChip label=".png"/>
             </div>
-            <div>
-              <p style={{ fontSize: 12, fontWeight: 600, color: '#f0eef4', marginBottom: 1 }}>{userProfile.name}</p>
-              <p style={{ fontSize: 10, color: 'rgba(240,238,244,0.4)' }}>{userProfile.handle} · launch posts ready</p>
+            <div style={{ display: 'grid', gridTemplateColumns: `repeat(${Math.min(brand.mockups.length, 2)}, 1fr)`, gap: 8 }}>
+              {brand.mockups.map((m, i) => (
+                <div key={i} style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 14, overflow: 'hidden' }}>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={m.url} alt={m.label} style={{ width: '100%', aspectRatio: '1', objectFit: 'cover', display: 'block' }}/>
+                  <p style={{ fontSize: 9, color: 'rgba(240,238,244,0.4)', textAlign: 'center', padding: '6px 0 8px', textTransform: 'uppercase', letterSpacing: '0.8px', fontWeight: 600 }}>{m.label}</p>
+                </div>
+              ))}
             </div>
           </div>
+        )}
 
+        {/* 05 — social copy */}
+        <div style={{ padding: '0 22px', marginBottom: 28 }}>
+          <SectionLabel>05 · social copy</SectionLabel>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {userVoicePosts.map((post, i) => {
-              const tweetHref = `https://twitter.com/intent/tweet?text=${encodeURIComponent(post)}`;
+            {brand.voice.examples.map((ex, i) => {
+              const icons     = ['𝕏', '◎', '♪'];
+              const platforms = ['x / twitter', 'instagram', 'threads'];
+              const tweetHref = `https://twitter.com/intent/tweet?text=${encodeURIComponent(ex)}`;
               return (
-                <a
-                  key={i}
-                  href={tweetHref}
-                  target="_blank"
-                  rel="noreferrer"
-                  style={{ textDecoration: 'none' }}
-                >
-                  <div style={{ borderRadius: 14, background: 'rgba(255,255,255,0.025)', border: '1px solid rgba(255,255,255,0.07)', padding: '12px 14px', transition: 'border-color 0.2s, transform 0.2s' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-                      <span style={{ fontSize: 10, fontWeight: 700, color: 'rgba(210,190,255,0.72)', letterSpacing: '0.5px' }}>tweet option {i + 1}</span>
-                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, color: 'rgba(240,238,244,0.35)', fontSize: 10 }}>
-                        post to x <Icon name="arrow" size={9} color="rgba(240,238,244,0.28)" />
-                      </span>
+                <div key={i} style={{ borderRadius: 14, background: 'rgba(255,255,255,0.025)', border: '1px solid rgba(255,255,255,0.07)', padding: '11px 13px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 7 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                      <span style={{ fontSize: 10, fontWeight: 800, color: 'rgba(240,238,244,0.4)' }}>{icons[i % 3]}</span>
+                      <span style={{ fontSize: 9, color: 'rgba(240,238,244,0.3)', letterSpacing: '0.3px' }}>{platforms[i % 3]}</span>
                     </div>
-                    <p style={{ fontSize: 12, color: '#f0eef4', lineHeight: 1.65 }}>{post}</p>
+                    <div style={{ display: 'flex', gap: 5 }}>
+                      <CopyBtn k={`post-${i}`} text={ex}/>
+                      {i === 0 && (
+                        <a href={tweetHref} target="_blank" rel="noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '4px 8px', borderRadius: 6, background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)', color: 'rgba(240,238,244,0.4)', fontSize: 10, textDecoration: 'none' }}>
+                          post <Icon name="arrow" size={8} color="rgba(255,255,255,0.3)"/>
+                        </a>
+                      )}
+                    </div>
                   </div>
-                </a>
+                  <p style={{ fontSize: 11.5, color: '#f0eef4', lineHeight: 1.65 }}>{ex}</p>
+                </div>
               );
             })}
           </div>
