@@ -119,7 +119,7 @@ async def _why_line(
 
 async def match(persona: Persona) -> list[AgencyMatch]:
     settings = get_settings()
-    client = AsyncAnthropic(api_key=settings.anthropic_api_key)
+    client = AsyncAnthropic(api_key=settings.anthropic_api_key or None)
 
     _ensure_agency_cache()
 

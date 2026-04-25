@@ -95,7 +95,7 @@ def _contains_banned(text: str) -> bool:
 
 async def synthesize(product_idea: str, audience: RawAudience) -> Persona:
     settings = get_settings()
-    client = AsyncAnthropic(api_key=settings.anthropic_api_key)
+    client = AsyncAnthropic(api_key=settings.anthropic_api_key or None)
 
     user_prompt = _build_user_prompt(product_idea, audience)
 
@@ -160,7 +160,7 @@ async def suggest_brand_name(
     product_idea: str, persona: Persona
 ) -> tuple[list[str], str]:
     settings = get_settings()
-    client = AsyncAnthropic(api_key=settings.anthropic_api_key)
+    client = AsyncAnthropic(api_key=settings.anthropic_api_key or None)
 
     prompt = _BRAND_NAME_USER_TEMPLATE.format(
         product_idea=product_idea,
@@ -220,7 +220,7 @@ Return JSON with this exact schema:
 async def analyze_network(handle: str, audience: RawAudience) -> NetworkInsights:
     """Analyze followers/following to produce audience targeting insights."""
     settings = get_settings()
-    client = AsyncAnthropic(api_key=settings.anthropic_api_key)
+    client = AsyncAnthropic(api_key=settings.anthropic_api_key or None)
 
     follower_bios = "\n".join(
         f"- @{f.username}: {f.bio[:120]}" if f.bio else f"- @{f.username}"
