@@ -82,11 +82,11 @@ class _Brand:
             ),
             mockups=[
                 Mockup(
-                    label="Tee mockup",
+                    label="tee",
                     url="https://placehold.co/800x800/1a1a1a/c8ff00?text=Tee",
                 ),
                 Mockup(
-                    label="Tote mockup",
+                    label="tote",
                     url="https://placehold.co/800x800/1a1a1a/c8ff00?text=Tote",
                 ),
             ],
