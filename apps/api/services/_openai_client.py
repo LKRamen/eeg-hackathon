@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 
 T = TypeVar("T")
 
-MODEL = "claude-3-5-sonnet-20241022"
+MODEL = "claude-3-haiku-20240307"
 
 
 @lru_cache(maxsize=1)
