@@ -54,10 +54,12 @@ async def run_pipeline(job_id: str) -> None:
         jobs_db.update_status(job_id, "matching")
         from . import influencers as influencer_svc
         import asyncio as _asyncio
+        following_usernames = [u.username for u in audience.following_sample if u.username]
         matches, influencer_matches = await _asyncio.gather(
             matching_svc.match(persona),
             influencer_svc.find_influencers(
-                persona, job.product_idea, brand_assets.brand_name
+                persona, job.product_idea, brand_assets.brand_name,
+                following_usernames=following_usernames,
             ),
         )
 
