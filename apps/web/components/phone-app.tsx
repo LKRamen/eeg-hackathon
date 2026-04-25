@@ -349,7 +349,29 @@ function ResultsScreen({ result, onReset }: { result: BrandResult; onReset: () =
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6, alignItems: 'flex-end' }}>
               <span style={{ fontSize: 9, color: 'rgba(210,190,255,0.9)', background: 'rgba(210,190,255,0.15)', padding: '3px 8px', borderRadius: 5, fontWeight: 700, letterSpacing: '0.8px' }}>LIVE</span>
-              <button style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '6px 10px', borderRadius: 8, background: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.15)', color: '#fff', fontSize: 10, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
+              <button
+                onClick={async () => {
+                  try {
+                    const res = await fetch('/api/export', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ type: 'brand-guide', result }),
+                    });
+                    if (!res.ok) throw new Error(`Export ${res.status}`);
+                    const blob = await res.blob();
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `${brand.brand_name.toLowerCase().replace(/[^a-z0-9]+/g, '_')}_brand_guide.pdf`;
+                    a.click();
+                    URL.revokeObjectURL(url);
+                  } catch (err) {
+                    // eslint-disable-next-line no-alert
+                    alert(`Download failed: ${err instanceof Error ? err.message : 'unknown'}`);
+                  }
+                }}
+                style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '6px 10px', borderRadius: 8, background: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.15)', color: '#fff', fontSize: 10, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}
+              >
                 <Icon name="package" size={10} color="#fff"/> download all
               </button>
             </div>
