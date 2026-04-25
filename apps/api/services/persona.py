@@ -2,11 +2,13 @@ from __future__ import annotations
 
 import json
 import logging
+from pathlib import Path
 
 from anthropic import AsyncAnthropic
 
 from ..config import get_settings
 from ..models.schemas import NetworkInsights, Persona, RawAudience
+from ._openai_client import get_claude_client
 
 logger = logging.getLogger(__name__)
 
@@ -93,9 +95,23 @@ def _contains_banned(text: str) -> bool:
     return any(p.lower() in lower for p in _BANNED_PHRASES)
 
 
+_fixture_cache: Persona | None = None
+
+
+def _fixture_persona() -> Persona:
+    global _fixture_cache
+    if _fixture_cache is None:
+        fixture = Path(__file__).parent.parent / "fixtures" / "sample_persona.json"
+        with open(fixture, encoding="utf-8") as f:
+            _fixture_cache = Persona.model_validate(json.load(f))
+    return _fixture_cache
+
+
 async def synthesize(product_idea: str, audience: RawAudience) -> Persona:
-    settings = get_settings()
-    client = AsyncAnthropic(api_key=settings.anthropic_api_key or None)
+    client = get_claude_client()
+    if client is None:
+        logger.warning("No ANTHROPIC_API_KEY — using fixture persona")
+        return _fixture_persona()
 
     user_prompt = _build_user_prompt(product_idea, audience)
 
@@ -116,11 +132,15 @@ async def synthesize(product_idea: str, audience: RawAudience) -> Persona:
         persona = Persona(**data)
     except Exception as exc:
         logger.warning("First persona attempt failed (%s), retrying", exc)
-        data = await _call(
-            "\n\nYour previous response was not valid JSON matching the schema. "
-            "Return valid JSON only, no preamble, no markdown fences."
-        )
-        persona = Persona(**data)
+        try:
+            data = await _call(
+                "\n\nYour previous response was not valid JSON matching the schema. "
+                "Return valid JSON only, no preamble, no markdown fences."
+            )
+            persona = Persona(**data)
+        except Exception as exc2:
+            logger.warning("Persona synthesis failed after retry (%s) — using fixture", exc2)
+            return _fixture_persona()
 
     full_text = persona.model_dump_json()
     if _contains_banned(full_text):

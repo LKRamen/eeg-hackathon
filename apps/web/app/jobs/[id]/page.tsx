@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import type { Job, JobStatus, BrandResult } from "@halo/types";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { BrandKitSlides } from "@/components/BrandKitSlides";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -351,12 +352,13 @@ export default function JobPage({ params }: { params: { id: string } }) {
     }
   );
 
-  // Inject Google Fonts when typography data arrives
+  // Inject Google Fonts when typography data arrives (use google_url when available).
   useEffect(() => {
     const typo = job?.result?.brand_assets?.typography;
     if (!typo) return;
-    [typo.display.family, typo.body.family].forEach((family) => {
-      const href = `https://fonts.googleapis.com/css2?family=${encodeURIComponent(family)}:wght@400;700&display=swap`;
+    const urls = [typo.display.google_url, typo.body.google_url].filter(Boolean);
+    urls.forEach((href) => {
+      if (!href) return;
       if (!document.querySelector(`link[href="${href}"]`)) {
         const link = document.createElement("link");
         link.rel = "stylesheet";
@@ -390,37 +392,50 @@ export default function JobPage({ params }: { params: { id: string } }) {
   }
 
   return (
-    <main className="mx-auto max-w-2xl px-4 pb-24">
-      <Timeline status={job.status} />
+    <main className="min-h-screen w-full px-6 pb-20">
+      <div className="mx-auto w-full max-w-[1400px]">
+        <Timeline status={job.status} />
 
-      {/* Error state */}
-      {job.status === "error" && (
-        <div className="rounded-lg border border-red-900/50 bg-red-950/30 px-4 py-3 text-sm text-red-400">
-          {job.error_message ?? "Something went wrong."}
-        </div>
-      )}
+        {/* Error state */}
+        {job.status === "error" && (
+          <div className="rounded-lg border border-red-900/50 bg-red-950/30 px-4 py-3 text-sm text-red-400">
+            {job.error_message ?? "Something went wrong."}
+          </div>
+        )}
 
-      {/* In-progress state */}
-      {job.status !== "done" && job.status !== "error" && (
-        <p className="text-center text-sm text-zinc-600">Working on it…</p>
-      )}
+        {/* In-progress state */}
+        {job.status !== "done" && job.status !== "error" && (
+          <p className="text-center text-sm text-zinc-600">Working on it…</p>
+        )}
 
-      {/* Results */}
-      {job.status === "done" && job.result && (
-        <div className="animate-in fade-in duration-700 space-y-12">
-          <PersonaSection persona={job.result.persona} />
-          <Divider />
-          <BrandSection brand={job.result.brand_assets} />
-          <Divider />
-          <MockupsSection mockups={job.result.brand_assets.mockups} />
-          <Divider />
-          <AgencySection matches={job.result.agency_matches} />
-          <Divider />
-          <FooterSection pdfUrl={job.result.brand_guide_pdf_url} onToast={showToast} />
-        </div>
-      )}
+        {/* Results (Preview Mode) */}
+        {job.status === "done" && job.result && (
+          <div className="animate-in fade-in duration-700">
+            <BrandKitSlides result={job.result} className="w-full" />
 
-      {toast && <Toast message={toast} />}
+            {/* Keep secondary actions available but out of the slide canvas */}
+            <div className="mt-8 flex flex-wrap items-center gap-3">
+              {job.result.brand_guide_pdf_url && (
+                <a
+                  href={job.result.brand_guide_pdf_url}
+                  download
+                  className="inline-flex h-10 items-center justify-center rounded-md border border-white/10 bg-white/5 px-4 text-sm text-white/80 hover:bg-white/10"
+                >
+                  Download rendered guide (URL)
+                </a>
+              )}
+              <Button variant="outline" onClick={() => showToast("Sent to 3 manufacturers")}>
+                Request manufacturing quote
+              </Button>
+              <Button variant="outline" onClick={() => showToast("Intro request sent")}>
+                Connect with agency
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {toast && <Toast message={toast} />}
+      </div>
     </main>
   );
 }

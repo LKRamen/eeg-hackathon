@@ -1,205 +1,978 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8">
-  <title>{{ brand.brand_name }} — Brand Guide</title>
-  {% if brand.typography %}
-  <link rel="stylesheet" href="{{ brand.typography.display.google_url }}">
-  <link rel="stylesheet" href="{{ brand.typography.body.google_url }}">
-  {% endif %}
-  <style>
-    :root {
-      --primary:   {{ tokens.primary }};
-      --secondary: {{ tokens.secondary }};
-      --accent:    {{ tokens.accent }};
-      --bg:        {{ tokens.bg }};
-      --fg:        {{ tokens.fg }};
-      --display-family: "{{ brand.typography.display.family if brand.typography else 'Space Grotesk' }}";
-      --body-family:    "{{ brand.typography.body.family if brand.typography else 'Inter' }}";
-    }
-  </style>
+<meta charset="utf-8">
+<title>{{ brand.brand_name }} — Brand Identity System</title>
+{% if brand.typography %}
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="{{ brand.typography.display.google_url }}">
+{% if brand.typography.body.google_url != brand.typography.display.google_url %}
+<link rel="stylesheet" href="{{ brand.typography.body.google_url }}">
+{% endif %}
+{% endif %}
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap">
+<style>
+@page {
+  size: 1920px 1080px;
+  margin: 0;
+}
+
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+:root {
+  --c-p:     {{ tokens.primary }};
+  --c-s:     {{ tokens.secondary }};
+  --c-a:     {{ tokens.accent }};
+  --c-bg:    #0a0a0a;
+  --c-fg:    #f0ede6;
+  --c-dim:   rgba(240, 237, 230, 0.38);
+  --c-rule:  rgba(240, 237, 230, 0.07);
+  --f-d: '{{ brand.typography.display.family if brand.typography else "Space Grotesk" }}', 'Space Grotesk', system-ui, sans-serif;
+  --f-b: '{{ brand.typography.body.family if brand.typography else "Inter" }}', 'Inter', system-ui, sans-serif;
+  --f-m: 'JetBrains Mono', 'IBM Plex Mono', ui-monospace, monospace;
+}
+
+html, body {
+  width: 1920px;
+  background: var(--c-bg);
+  color: var(--c-fg);
+  font-family: var(--f-b);
+  font-size: 14px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ─── SLIDE BASE ──────────────────────────────────────── */
+.slide {
+  width: 1920px;
+  height: 1080px;
+  background: var(--c-bg);
+  position: relative;
+  overflow: hidden;
+  page-break-after: always;
+  break-after: page;
+  page-break-inside: avoid;
+}
+.slide:last-child { page-break-after: auto; break-after: auto; }
+
+.sn {  /* slide number */
+  position: absolute; top: 44px; right: 60px; z-index: 50;
+  font-family: var(--f-m); font-size: 11px; letter-spacing: 0.18em;
+  text-transform: uppercase; color: var(--c-dim);
+}
+.bm {  /* brand mark */
+  position: absolute; top: 44px; left: 60px; z-index: 50;
+  font-family: var(--f-d); font-size: 11px; font-weight: 700;
+  letter-spacing: 0.18em; text-transform: uppercase; color: var(--c-dim);
+}
+
+/* ─── UTILITY ─────────────────────────────────────────── */
+img.fill  { width: 100%; height: 100%; object-fit: cover;   display: block; }
+img.hold  { width: 100%; height: 100%; object-fit: contain; display: block; }
+.fd { font-family: var(--f-d); font-weight: 700; }
+.fb { font-family: var(--f-b); }
+.fm { font-family: var(--f-m); }
+.dim   { color: var(--c-dim); }
+.acc   { color: var(--c-a); }
+.upper { text-transform: uppercase; letter-spacing: 0.12em; }
+.col   { display: flex; flex-direction: column; }
+.row   { display: flex; flex-direction: row; }
+.vend  { justify-content: flex-end; }
+.cent  { align-items: center; justify-content: center; }
+
+/* ═══════════════════════════════════════════════════════ */
+/*  01 — COVER                                            */
+/*  Left: massive headline + tagline  |  Right: image     */
+/* ═══════════════════════════════════════════════════════ */
+.s01 { display: grid; grid-template-columns: 1100px 1fr; }
+
+.s01-l {
+  display: flex; flex-direction: column; justify-content: flex-end;
+  padding: 96px 80px 96px 96px;
+}
+.s01-eye {
+  font-family: var(--f-m); font-size: 11px; letter-spacing: 0.2em;
+  text-transform: uppercase; color: var(--c-dim); margin-bottom: 20px;
+}
+.s01-name {
+  font-family: var(--f-d); font-size: 144px; font-weight: 700;
+  line-height: 0.88; letter-spacing: -0.03em; color: var(--c-fg);
+  word-break: break-word;
+}
+.s01-tag {
+  font-family: var(--f-b); font-size: 22px; line-height: 1.4;
+  color: var(--c-dim); margin-top: 28px; max-width: 640px;
+}
+.s01-foot {
+  display: flex; justify-content: space-between; margin-top: 72px;
+  font-family: var(--f-m); font-size: 11px; letter-spacing: 0.14em;
+  text-transform: uppercase; color: var(--c-dim);
+}
+.s01-r {
+  background: var(--c-p);
+  overflow: hidden; position: relative;
+}
+.s01-r img { width: 100%; height: 100%; object-fit: cover; opacity: 0.72; }
+.s01-r-logo {
+  display: flex; align-items: center; justify-content: center;
+  width: 100%; height: 100%;
+}
+.s01-r-logo img { max-width: 360px; max-height: 360px; object-fit: contain; opacity: 0.85; }
+
+/* ═══════════════════════════════════════════════════════ */
+/*  02 — BRAND ESSENCE                                    */
+/*  Left: philosophy | Center: image | Right: 3 pillars   */
+/* ═══════════════════════════════════════════════════════ */
+.s02 { display: grid; grid-template-columns: 380px 1fr 420px; }
+
+.s02-l {
+  display: flex; flex-direction: column; justify-content: flex-end;
+  padding: 80px 48px 80px 60px;
+  border-right: 1px solid var(--c-rule);
+}
+.s02-hdg {
+  font-family: var(--f-m); font-size: 11px; letter-spacing: 0.18em;
+  text-transform: uppercase; color: var(--c-a); margin-bottom: 24px;
+}
+.s02-sum {
+  font-family: var(--f-d); font-size: 21px; font-weight: 400;
+  line-height: 1.5; color: var(--c-fg);
+}
+.s02-c {
+  background: var(--c-a); overflow: hidden;
+}
+.s02-c img { width: 100%; height: 100%; object-fit: cover; opacity: 0.82; }
+.s02-r {
+  display: flex; flex-direction: column; justify-content: flex-end;
+  padding: 80px 60px 80px 48px;
+  border-left: 1px solid var(--c-rule);
+}
+.s02-ph {
+  font-family: var(--f-m); font-size: 11px; letter-spacing: 0.18em;
+  text-transform: uppercase; color: var(--c-dim); margin-bottom: 24px;
+}
+.s02-pillar { padding: 22px 0; border-top: 1px solid var(--c-a); }
+.s02-pn { font-family: var(--f-m); font-size: 11px; letter-spacing: 0.14em; color: var(--c-a); margin-bottom: 6px; }
+.s02-pt { font-family: var(--f-b); font-size: 16px; line-height: 1.45; color: var(--c-fg); }
+
+/* ═══════════════════════════════════════════════════════ */
+/*  03 — LOGO SUITE                                       */
+/*  2×2: dark | cream | charcoal | primary                */
+/* ═══════════════════════════════════════════════════════ */
+.s03 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: 1fr 1fr;
+  gap: 2px; background: var(--c-bg);
+}
+.s03-cell {
+  display: flex; align-items: center; justify-content: center;
+  position: relative; padding: 64px;
+}
+.s03-cell img { max-width: 320px; max-height: 320px; object-fit: contain; }
+.s03-cap {
+  position: absolute; bottom: 28px; left: 36px;
+  font-family: var(--f-m); font-size: 10px; letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+.s03-a { background: var(--c-bg); }           .s03-a .s03-cap { color: var(--c-dim); }
+.s03-b { background: #f0ede6; }               .s03-b .s03-cap { color: rgba(10,10,10,0.4); }
+.s03-c { background: #161616; }               .s03-c .s03-cap { color: var(--c-dim); }
+.s03-d { background: var(--c-p); }            .s03-d .s03-cap { color: rgba(240,237,230,0.4); }
+.s03-no-logo {
+  font-family: var(--f-d); font-size: 64px; font-weight: 700;
+  letter-spacing: -0.03em; opacity: 0.3;
+}
+
+/* ═══════════════════════════════════════════════════════ */
+/*  04 — COLOR SYSTEM                                     */
+/*  Full-height swatches | Right panel: gradient+pairings */
+/* ═══════════════════════════════════════════════════════ */
+.s04 { display: grid; grid-template-columns: 1fr 440px; }
+
+.s04-sw-wrap { display: grid; grid-auto-columns: 1fr; grid-auto-flow: column; }
+.s04-sw {
+  display: flex; flex-direction: column; justify-content: flex-end;
+  padding: 28px 22px;
+}
+.s04-role { font-family: var(--f-m); font-size: 10px; letter-spacing: 0.16em; text-transform: uppercase; opacity: 0.45; }
+.s04-name { font-family: var(--f-d); font-size: 20px; font-weight: 700; margin-top: 4px; }
+.s04-hex  { font-family: var(--f-m); font-size: 13px; letter-spacing: 0.06em; margin-top: 3px; }
+.s04-r {
+  display: flex; flex-direction: column; justify-content: flex-end;
+  padding: 64px 48px 64px 40px;
+  border-left: 1px solid var(--c-rule);
+}
+.s04-grad {
+  height: 220px; border-radius: 4px; margin-bottom: 40px;
+  background: linear-gradient(135deg, var(--c-p) 0%, var(--c-a) 100%);
+}
+.s04-grad-label {
+  font-family: var(--f-m); font-size: 10px; letter-spacing: 0.16em;
+  text-transform: uppercase; color: var(--c-dim); margin-bottom: 32px;
+}
+.s04-pair { display: flex; align-items: center; gap: 14px; margin-bottom: 16px; }
+.s04-dot  { width: 28px; height: 28px; border-radius: 50%; flex-shrink: 0; }
+.s04-pt   { font-family: var(--f-b); font-size: 14px; color: var(--c-dim); }
+
+/* ═══════════════════════════════════════════════════════ */
+/*  05 — TYPOGRAPHY                                       */
+/*  Left: name+weight | Center: giant Aa | Right: scale   */
+/* ═══════════════════════════════════════════════════════ */
+.s05 { display: grid; grid-template-columns: 460px 1fr 480px; }
+
+.s05-l {
+  display: flex; flex-direction: column; justify-content: flex-end;
+  padding: 80px 48px 80px 72px;
+  border-right: 1px solid var(--c-rule);
+}
+.s05-fn {
+  font-family: var(--f-d); font-size: 80px; font-weight: 700;
+  line-height: 0.92; letter-spacing: -0.02em;
+}
+.s05-fn2 {
+  font-family: var(--f-b); font-size: 36px; font-weight: 400;
+  line-height: 0.92; letter-spacing: -0.01em;
+  margin-top: 16px; color: var(--c-dim);
+}
+.s05-fw {
+  font-family: var(--f-m); font-size: 11px; letter-spacing: 0.18em;
+  text-transform: uppercase; color: var(--c-a); margin-top: 20px;
+}
+.s05-c {
+  display: flex; align-items: center; justify-content: center;
+  background: var(--c-p); overflow: hidden;
+}
+.s05-aa {
+  font-family: var(--f-d); font-size: 480px; font-weight: 700;
+  line-height: 1; letter-spacing: -0.04em; color: var(--c-fg);
+  opacity: 0.9; margin-top: 60px;
+}
+.s05-r {
+  display: flex; flex-direction: column; justify-content: flex-end;
+  padding: 80px 72px 80px 48px;
+  border-left: 1px solid var(--c-rule);
+}
+.s05-scale-head {
+  font-family: var(--f-m); font-size: 10px; letter-spacing: 0.18em;
+  text-transform: uppercase; color: var(--c-dim); margin-bottom: 16px;
+}
+.s05-row {
+  display: flex; justify-content: space-between; align-items: baseline;
+  padding: 13px 0; border-top: 1px solid var(--c-rule);
+}
+.s05-rl { font-family: var(--f-m); font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--c-dim); min-width: 80px; }
+.s05-rs { font-family: var(--f-d); color: var(--c-fg); }
+
+/* ═══════════════════════════════════════════════════════ */
+/*  06 — GRAPHIC LANGUAGE                                 */
+/*  3×2 bento of CSS/SVG shapes — no two cells alike      */
+/* ═══════════════════════════════════════════════════════ */
+.s06 {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  grid-template-rows: repeat(2, 1fr);
+  gap: 2px; background: var(--c-bg);
+}
+.s06-cell { position: relative; overflow: hidden; display: flex; align-items: center; justify-content: center; }
+
+.s06-a { background: var(--c-p); }
+.s06-b { background: var(--c-bg); }
+.s06-c { background: var(--c-a); }
+.s06-d { background: #161616; }
+.s06-e { background: var(--c-s); }
+.s06-f { background: var(--c-bg); }
+
+.gfx-grid-bg {
+  position: absolute; inset: 0;
+  background-image:
+    linear-gradient(var(--c-rule) 1px, transparent 1px),
+    linear-gradient(90deg, var(--c-rule) 1px, transparent 1px);
+  background-size: 48px 48px;
+}
+.gfx-stripe-bg {
+  position: absolute; inset: 0;
+  background: repeating-linear-gradient(
+    -45deg,
+    rgba(240,237,230,0.06) 0, rgba(240,237,230,0.06) 2px,
+    transparent 2px, transparent 24px
+  );
+}
+
+/* ═══════════════════════════════════════════════════════ */
+/*  07 — PRODUCT OBSESSION                               */
+/*  Hero mockup span-2 | Sub mockup | Copy | Accent bar   */
+/* ═══════════════════════════════════════════════════════ */
+.s07 {
+  display: grid;
+  grid-template-columns: 1fr 1fr 500px;
+  grid-template-rows: 3fr 1fr;
+  gap: 2px; background: var(--c-bg);
+}
+.s07-hero { grid-row: span 2; overflow: hidden; background: var(--c-p); }
+.s07-hero img { width: 100%; height: 100%; object-fit: cover; }
+.s07-sub  { overflow: hidden; background: var(--c-s); }
+.s07-sub img  { width: 100%; height: 100%; object-fit: cover; }
+.s07-copy {
+  display: flex; flex-direction: column; justify-content: center;
+  padding: 56px 52px; background: var(--c-bg);
+}
+.s07-copy-q {
+  font-family: var(--f-d); font-size: 48px; font-weight: 700;
+  line-height: 1.05; letter-spacing: -0.02em;
+}
+.s07-copy-sub {
+  font-family: var(--f-m); font-size: 12px; letter-spacing: 0.14em;
+  text-transform: uppercase; color: var(--c-dim); margin-top: 24px;
+}
+.s07-accent {
+  background: var(--c-a);
+  display: flex; flex-direction: column; justify-content: flex-end;
+  padding: 28px 36px;
+}
+.s07-acc-t { font-family: var(--f-m); font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: rgba(10,10,10,0.6); }
+
+/* ═══════════════════════════════════════════════════════ */
+/*  08 — PACKAGING EXPLORATION                           */
+/*  Large main span-2 | Detail | Accent copy             */
+/* ═══════════════════════════════════════════════════════ */
+.s08 {
+  display: grid;
+  grid-template-columns: 1.8fr 1fr;
+  grid-template-rows: 1fr 380px;
+  gap: 2px; background: var(--c-bg);
+}
+.s08-main { grid-row: span 2; position: relative; overflow: hidden; background: var(--c-p); }
+.s08-main img { width: 100%; height: 100%; object-fit: cover; }
+.s08-ov {
+  position: absolute; bottom: 0; left: 0; right: 0;
+  padding: 64px 64px 56px;
+  background: linear-gradient(to top, rgba(10,10,10,0.88) 0%, transparent 100%);
+}
+.s08-ov-name {
+  font-family: var(--f-d); font-size: 72px; font-weight: 700;
+  line-height: 0.9; letter-spacing: -0.03em; color: var(--c-fg);
+}
+.s08-ov-sub {
+  font-family: var(--f-m); font-size: 11px; letter-spacing: 0.16em;
+  text-transform: uppercase; color: var(--c-dim); margin-top: 12px;
+}
+.s08-det { overflow: hidden; background: var(--c-s); }
+.s08-det img { width: 100%; height: 100%; object-fit: cover; }
+.s08-copy {
+  background: var(--c-a);
+  display: flex; flex-direction: column; justify-content: flex-end;
+  padding: 36px 44px;
+}
+.s08-copy-t { font-family: var(--f-d); font-size: 28px; font-weight: 700; letter-spacing: -0.01em; color: #0a0a0a; }
+.s08-copy-s { font-family: var(--f-m); font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: rgba(10,10,10,0.55); margin-top: 8px; }
+
+/* ═══════════════════════════════════════════════════════ */
+/*  09 — EDITORIAL PHOTOGRAPHY                           */
+/*  Top strip: 3 thumbnails with captions | Hero below   */
+/* ═══════════════════════════════════════════════════════ */
+.s09 {
+  display: grid;
+  grid-template-rows: 330px 1fr;
+  gap: 2px; background: var(--c-bg);
+}
+.s09-strip { display: grid; grid-template-columns: repeat(3, 1fr); gap: 2px; }
+.s09-th { overflow: hidden; background: var(--c-p); position: relative; }
+.s09-th img { width: 100%; height: 100%; object-fit: cover; }
+.s09-cap {
+  position: absolute; bottom: 14px; left: 18px;
+  font-family: var(--f-m); font-size: 10px; letter-spacing: 0.14em;
+  text-transform: uppercase; color: rgba(240,237,230,0.5);
+}
+.s09-hero { overflow: hidden; background: var(--c-s); position: relative; }
+.s09-hero img { width: 100%; height: 100%; object-fit: cover; }
+.s09-hero-ov {
+  position: absolute; bottom: 56px; left: 72px;
+}
+.s09-hero-ov-t {
+  font-family: var(--f-d); font-size: 64px; font-weight: 700;
+  line-height: 0.92; letter-spacing: -0.03em; color: var(--c-fg);
+}
+.s09-hero-ov-s {
+  font-family: var(--f-m); font-size: 11px; letter-spacing: 0.16em;
+  text-transform: uppercase; color: rgba(240,237,230,0.55); margin-top: 10px;
+}
+
+/* ═══════════════════════════════════════════════════════ */
+/*  10 — CROSS-PLATFORM                                  */
+/*  Phone | Desktop mockup | Merch | Social strip bottom  */
+/* ═══════════════════════════════════════════════════════ */
+.s10 {
+  display: grid;
+  grid-template-columns: 420px 1fr 420px;
+  grid-template-rows: 1fr 240px;
+  gap: 2px; background: var(--c-bg);
+}
+.s10-phone { display: flex; align-items: center; justify-content: center; background: #0d0d0d; }
+.s10-desk  { display: flex; align-items: center; justify-content: center; background: #0f0f0f; overflow: hidden; }
+.s10-merch { display: grid; grid-template-rows: 1fr 1fr; gap: 2px; background: var(--c-bg); }
+.s10-mt { overflow: hidden; background: var(--c-p); }
+.s10-mt img { width: 100%; height: 100%; object-fit: cover; }
+.s10-social { grid-column: span 3; display: grid; grid-template-columns: repeat(4, 1fr); gap: 2px; }
+.s10-sc { overflow: hidden; background: var(--c-p); }
+.s10-sc img { width: 100%; height: 100%; object-fit: cover; }
+.s10-sc-fill { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; background: var(--c-p); }
+.s10-sc-text { font-family: var(--f-d); font-size: 32px; font-weight: 700; letter-spacing: -0.02em; opacity: 0.35; }
+
+/* CSS Phone */
+.phone {
+  width: 220px; height: 440px;
+  background: #1c1c1e; border-radius: 40px;
+  border: 2px solid #333; position: relative; overflow: hidden;
+  box-shadow: 0 32px 80px rgba(0,0,0,0.72);
+}
+.phone-notch {
+  width: 80px; height: 24px;
+  background: #1c1c1e; border-radius: 0 0 14px 14px;
+  margin: 0 auto; position: relative; z-index: 2;
+}
+.phone-scr {
+  position: absolute; inset: 0;
+  background: var(--c-p);
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  gap: 10px; padding: 28px;
+}
+.phone-scr-brand {
+  font-family: var(--f-d); font-size: 22px; font-weight: 700;
+  letter-spacing: -0.01em; color: var(--c-fg); text-align: center;
+}
+.phone-scr-tag {
+  font-family: var(--f-b); font-size: 11px; line-height: 1.4;
+  color: var(--c-dim); text-align: center;
+}
+.phone-scr-btn {
+  margin-top: 20px; background: var(--c-a);
+  padding: 9px 22px; border-radius: 22px;
+  font-family: var(--f-m); font-size: 9px; letter-spacing: 0.14em;
+  text-transform: uppercase; color: #0a0a0a;
+}
+
+/* CSS Desktop */
+.desktop {
+  width: 660px; height: 414px;
+  background: #1c1c1e; border-radius: 12px;
+  border: 2px solid #2c2c2e; overflow: hidden;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.55);
+}
+.desktop-bar {
+  height: 32px; background: #2a2a2c;
+  display: flex; align-items: center; padding: 0 14px; gap: 7px;
+}
+.desktop-dot { width: 10px; height: 10px; border-radius: 50%; }
+.desktop-scr { background: #0a0a0a; height: calc(100% - 32px); padding: 20px; }
+.desktop-nav { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+.desktop-logo { font-family: var(--f-d); font-size: 14px; font-weight: 700; letter-spacing: -0.01em; color: var(--c-fg); }
+.desktop-links { display: flex; gap: 16px; }
+.desktop-link { height: 6px; width: 38px; background: var(--c-dim); border-radius: 3px; }
+.desktop-hero-block { height: 140px; background: var(--c-p); border-radius: 6px; position: relative; overflow: hidden; margin-bottom: 10px; }
+.desktop-hero-txt { position: absolute; bottom: 14px; left: 16px; font-family: var(--f-d); font-size: 24px; font-weight: 700; letter-spacing: -0.01em; color: var(--c-fg); }
+.desktop-cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.desktop-card { height: 58px; border-radius: 4px; }
+</style>
 </head>
 <body>
 
-<!-- PAGE 1 — COVER -->
-<section class="page col center">
-  {% if brand.logo %}
-  <img src="{{ brand.logo.primary }}" alt="logo" style="width: 320px; height: 320px; object-fit: contain;">
-  {% endif %}
-  <h1 class="display text-4xl" style="margin-top: 32px;">{{ brand.brand_name }}</h1>
-  {% if brand.tagline %}
-  <p class="italic text-md" style="margin-top: 12px;">{{ brand.tagline }}</p>
-  {% endif %}
-  <div style="position: absolute; bottom: 4cm; left: 4cm; right: 4cm;" class="between mono text-xs upper">
-    <span>Brand Guide</span><span>{{ date }}</span>
+<!-- ════════════════════════════════════════════════════ -->
+<!-- 01 — COVER                                          -->
+<!-- ════════════════════════════════════════════════════ -->
+<section class="slide s01">
+  <span class="bm">{{ brand.brand_name }}</span>
+  <span class="sn">01 —</span>
+
+  <div class="s01-l">
+    <div class="s01-eye">Brand Identity System</div>
+    <div class="s01-name fd">{{ brand.brand_name }}</div>
+    {% if brand.tagline %}
+    <p class="s01-tag">{{ brand.tagline }}</p>
+    {% endif %}
+    <div class="s01-foot">
+      <span>Brand Kit — Version 1.0</span>
+      <span>{{ date }}</span>
+    </div>
+  </div>
+
+  <div class="s01-r">
+    {% if brand.social_kit and brand.social_kit|length > 2 %}
+      <img src="{{ brand.social_kit[2].url }}" alt="" class="fill">
+    {% elif brand.logo %}
+      <div class="s01-r-logo">
+        <img src="{{ brand.logo.primary }}" alt="">
+      </div>
+    {% endif %}
   </div>
 </section>
 
-<!-- PAGE 2 — CUSTOMER -->
-<section class="page col">
-  <div class="label">Built for</div>
-  <h2 class="display text-xl">{{ persona.name or "Customer" }}</h2>
-  <div class="mono text-sm">{{ persona.age_range }}{% if persona.location_archetype %} · {{ persona.location_archetype }}{% endif %}</div>
-  <p class="pullquote" style="margin-top: 24px; max-width: 600px;">{{ persona.summary }}</p>
+<!-- ════════════════════════════════════════════════════ -->
+<!-- 02 — BRAND ESSENCE                                  -->
+<!-- ════════════════════════════════════════════════════ -->
+<section class="slide s02">
+  <span class="bm">{{ brand.brand_name }}</span>
+  <span class="sn">02 —</span>
 
-  <div class="grid-2" style="margin-top: 32px;">
-    <div>
-      <div class="label">Interests</div>
-      <ul style="list-style: none; margin-top: 8px;">
-        {% for it in persona.interests %}<li style="padding: 4px 0;">— {{ it }}</li>{% endfor %}
-      </ul>
-    </div>
-    <div>
-      <div class="label">Psychographics</div>
-      <ul style="list-style: none; margin-top: 8px;">
-        {% for ps in persona.psychographics %}<li style="padding: 4px 0;">— {{ ps }}</li>{% endfor %}
-      </ul>
+  <div class="s02-l">
+    <div class="s02-hdg">Brand Essence</div>
+    <p class="s02-sum">{{ persona.summary }}</p>
+    <div style="margin-top: 32px; font-family: var(--f-m); font-size: 13px; line-height: 2.0; color: var(--c-dim);">
+      {% for kw in persona.aesthetic_keywords %}{{ kw }}{% if not loop.last %} &nbsp;·&nbsp; {% endif %}{% endfor %}
     </div>
   </div>
 
-  <div style="margin-top: 32px;">
-    <div class="label">Aesthetic</div>
-    <div style="margin-top: 8px;">
-      {% for kw in persona.aesthetic_keywords %}<span class="chip">{{ kw }}</span>{% endfor %}
+  <div class="s02-c">
+    {% if brand.social_kit and brand.social_kit|length > 2 %}
+      <img src="{{ brand.social_kit[2].url }}" alt="" class="fill">
+    {% elif brand.mockups %}
+      <img src="{{ brand.mockups[0].url }}" alt="" class="fill">
+    {% endif %}
+  </div>
+
+  <div class="s02-r">
+    <div class="s02-ph">Brand Pillars</div>
+    {% for pillar in [persona.psychographics[0] if persona.psychographics else '', persona.interests[0] if persona.interests else '', persona.purchase_signals[0] if persona.purchase_signals else ''] %}
+    {% if pillar %}
+    <div class="s02-pillar">
+      <div class="s02-pn">0{{ loop.index }}</div>
+      <div class="s02-pt">{{ pillar }}</div>
+    </div>
+    {% endif %}
+    {% endfor %}
+  </div>
+</section>
+
+<!-- ════════════════════════════════════════════════════ -->
+<!-- 03 — LOGO SUITE                                     -->
+<!-- ════════════════════════════════════════════════════ -->
+<section class="slide s03">
+  <span class="bm">{{ brand.brand_name }}</span>
+  <span class="sn">03 —</span>
+
+  <!-- Top-left: primary on dark -->
+  <div class="s03-cell s03-a">
+    {% if brand.logo %}
+      <img src="{{ brand.logo.primary }}" alt="">
+    {% else %}
+      <div class="s03-no-logo fd">{{ brand.brand_name[0] }}</div>
+    {% endif %}
+    <span class="s03-cap">Primary</span>
+  </div>
+
+  <!-- Top-right: mono-dark on light -->
+  <div class="s03-cell s03-b">
+    {% if brand.logo %}
+      <img src="{{ brand.logo.mono_dark }}" alt="">
+    {% else %}
+      <div class="s03-no-logo fd" style="color:#0a0a0a;">{{ brand.brand_name[0] }}</div>
+    {% endif %}
+    <span class="s03-cap">Monochrome — Light Ground</span>
+  </div>
+
+  <!-- Bottom-left: mono-light on charcoal -->
+  <div class="s03-cell s03-c">
+    {% if brand.logo %}
+      <img src="{{ brand.logo.mono_light }}" alt="">
+    {% else %}
+      <div class="s03-no-logo fd">{{ brand.brand_name[0] }}</div>
+    {% endif %}
+    <span class="s03-cap">Monochrome — Dark Ground</span>
+  </div>
+
+  <!-- Bottom-right: on-brand on primary -->
+  <div class="s03-cell s03-d">
+    {% if brand.logo %}
+      <img src="{{ brand.logo.on_brand }}" alt="">
+    {% else %}
+      <div class="s03-no-logo fd">{{ brand.brand_name[0] }}</div>
+    {% endif %}
+    <span class="s03-cap">On Brand Color</span>
+  </div>
+</section>
+
+<!-- ════════════════════════════════════════════════════ -->
+<!-- 04 — COLOR SYSTEM                                   -->
+<!-- ════════════════════════════════════════════════════ -->
+<section class="slide s04">
+  <span class="bm">{{ brand.brand_name }}</span>
+  <span class="sn">04 —</span>
+
+  <div class="s04-sw-wrap">
+    {% for c in palette %}
+    <div class="s04-sw" style="background: {{ c.hex }}; color: {{ c.text_color }};">
+      <div class="s04-role">{{ c.role }}</div>
+      <div class="s04-name">{{ c.name }}</div>
+      <div class="s04-hex">{{ c.hex }}</div>
+    </div>
+    {% endfor %}
+    {% if palette|length == 0 %}
+    <div class="s04-sw" style="background: var(--c-p); color: var(--c-fg);">
+      <div class="s04-role">primary</div>
+      <div class="s04-name">Brand Primary</div>
+      <div class="s04-hex">{{ tokens.primary }}</div>
+    </div>
+    {% endif %}
+  </div>
+
+  <div class="s04-r">
+    <div class="s04-grad"></div>
+    <div class="s04-grad-label">Primary × Accent Gradient</div>
+    <div class="s04-pair">
+      <div class="s04-dot" style="background: var(--c-p);"></div>
+      <div class="s04-pt">Primary — dominant structural tone</div>
+    </div>
+    <div class="s04-pair">
+      <div class="s04-dot" style="background: var(--c-a);"></div>
+      <div class="s04-pt">Accent — energy, CTAs, highlights</div>
+    </div>
+    <div class="s04-pair">
+      <div class="s04-dot" style="background: var(--c-s);"></div>
+      <div class="s04-pt">Secondary — supporting surfaces</div>
+    </div>
+    {% if contrast_ratio %}
+    <div style="margin-top: 28px; font-family: var(--f-m); font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--c-dim);">
+      Body contrast {{ contrast_ratio }}:1 — WCAG AA
+    </div>
+    {% endif %}
+  </div>
+</section>
+
+<!-- ════════════════════════════════════════════════════ -->
+<!-- 05 — TYPOGRAPHY                                     -->
+<!-- ════════════════════════════════════════════════════ -->
+<section class="slide s05">
+  <span class="bm">{{ brand.brand_name }}</span>
+  <span class="sn">05 —</span>
+
+  <div class="s05-l">
+    {% if brand.typography %}
+    <div style="font-family: var(--f-m); font-size: 11px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--c-dim); margin-bottom: 32px;">Display Type</div>
+    <div class="s05-fn">{{ brand.typography.display.family }}</div>
+    <div style="margin-top: 32px; font-family: var(--f-m); font-size: 11px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--c-dim);">Body Type</div>
+    <div class="s05-fn2">{{ brand.typography.body.family }}</div>
+    <div class="s05-fw">700 Bold — 400 Regular — 300 Light</div>
+    {% endif %}
+  </div>
+
+  <div class="s05-c">
+    <span class="s05-aa">Aa</span>
+  </div>
+
+  <div class="s05-r">
+    <div class="s05-scale-head">Type Scale</div>
+    <div class="s05-row">
+      <span class="s05-rl">Hero</span>
+      <span class="s05-rs" style="font-size: 96px; line-height: 1;">{{ brand.brand_name[0] }}g</span>
+    </div>
+    <div class="s05-row">
+      <span class="s05-rl">H1</span>
+      <span class="s05-rs" style="font-size: 64px; line-height: 1;">{{ brand.brand_name }}</span>
+    </div>
+    <div class="s05-row">
+      <span class="s05-rl">H2</span>
+      <span class="s05-rs" style="font-size: 40px; line-height: 1.1;">Brand Voice</span>
+    </div>
+    <div class="s05-row">
+      <span class="s05-rl">Body</span>
+      <span class="s05-rs" style="font-size: 18px; font-weight: 400; font-family: var(--f-b); line-height: 1.5;">{{ persona.summary[:60] if persona.summary else 'Body text at 18px, line-height 1.5.' }}</span>
+    </div>
+    <div class="s05-row">
+      <span class="s05-rl">Caption</span>
+      <span class="s05-rs" style="font-size: 12px; font-family: var(--f-m); letter-spacing: 0.12em; text-transform: uppercase; color: var(--c-dim);">12px — Mono Uppercase</span>
     </div>
   </div>
 </section>
 
-<!-- PAGE 3 — LOGO -->
-<section class="page col">
-  <div class="label">Logo</div>
-  <h2 class="display text-xl">Identity in four states</h2>
-  {% if brand.logo %}
-  <div class="grid-2" style="margin-top: 32px;">
-    <div class="center" style="background: #fff; padding: 24px; border: 1px solid var(--fg);">
-      <img src="{{ brand.logo.primary }}" alt="primary" style="max-height: 200px;">
-    </div>
-    <div class="center" style="background: #fff; padding: 24px; border: 1px solid var(--fg);">
-      <img src="{{ brand.logo.mono_dark }}" alt="mono dark" style="max-height: 200px;">
-    </div>
-    <div class="center" style="background: #0a0a0a; padding: 24px;">
-      <img src="{{ brand.logo.mono_light }}" alt="mono light" style="max-height: 200px;">
-    </div>
-    <div class="center" style="background: var(--primary); padding: 24px;">
-      <img src="{{ brand.logo.on_brand }}" alt="on brand" style="max-height: 200px;">
-    </div>
+<!-- ════════════════════════════════════════════════════ -->
+<!-- 06 — GRAPHIC LANGUAGE                               -->
+<!-- ════════════════════════════════════════════════════ -->
+<section class="slide s06">
+  <span class="bm">{{ brand.brand_name }}</span>
+  <span class="sn">06 —</span>
+
+  <!-- A: Concentric circles on primary -->
+  <div class="s06-cell s06-a">
+    <svg width="380" height="380" viewBox="0 0 380 380">
+      <circle cx="190" cy="190" r="180" fill="none" stroke="rgba(240,237,230,0.15)" stroke-width="1"/>
+      <circle cx="190" cy="190" r="130" fill="none" stroke="rgba(240,237,230,0.25)" stroke-width="1"/>
+      <circle cx="190" cy="190" r="80"  fill="none" stroke="rgba(240,237,230,0.5)"  stroke-width="2"/>
+      <circle cx="190" cy="190" r="24"  fill="var(--c-fg)" opacity="0.9"/>
+    </svg>
   </div>
-  <div class="row mono text-xs upper" style="margin-top: 16px;">
-    <span style="flex:1;">Primary</span><span style="flex:1;">Mono · dark bg</span>
-    <span style="flex:1;">Mono · light bg</span><span style="flex:1;">On brand</span>
+
+  <!-- B: Crosshair grid on dark -->
+  <div class="s06-cell s06-b">
+    <div class="gfx-grid-bg"></div>
+    <svg width="240" height="240" viewBox="0 0 240 240" style="position:relative;z-index:1;">
+      <rect x="40" y="40" width="160" height="160" fill="none" stroke="var(--c-a)" stroke-width="2"/>
+      <line x1="120" y1="0"   x2="120" y2="240" stroke="var(--c-a)" stroke-width="1" opacity="0.4"/>
+      <line x1="0"   y1="120" x2="240" y2="120" stroke="var(--c-a)" stroke-width="1" opacity="0.4"/>
+      <circle cx="120" cy="120" r="6" fill="var(--c-a)"/>
+    </svg>
   </div>
-  {% endif %}
+
+  <!-- C: First letter of brand name on accent -->
+  <div class="s06-cell s06-c">
+    <span style="font-family: var(--f-d); font-size: 340px; font-weight: 700; line-height: 1; letter-spacing: -0.04em; color: rgba(10,10,10,0.18);">{{ brand.brand_name[0] | upper }}</span>
+    <div style="position:absolute; bottom: 32px; left: 36px; font-family: var(--f-m); font-size: 11px; letter-spacing: 0.18em; text-transform: uppercase; color: rgba(10,10,10,0.55);">Graphic Mark</div>
+  </div>
+
+  <!-- D: Diagonal stripes on charcoal -->
+  <div class="s06-cell s06-d">
+    <div class="gfx-stripe-bg"></div>
+    <svg width="200" height="200" viewBox="0 0 200 200" style="position:relative;z-index:1;">
+      <polygon points="100,10 190,190 10,190" fill="none" stroke="rgba(240,237,230,0.5)" stroke-width="2"/>
+      <polygon points="100,50 160,170 40,170" fill="rgba(240,237,230,0.08)"/>
+      <circle cx="100" cy="100" r="8" fill="var(--c-a)"/>
+    </svg>
+  </div>
+
+  <!-- E: Keywords on secondary -->
+  <div class="s06-cell s06-e" style="flex-direction: column; align-items: flex-start; padding: 48px;">
+    <div style="font-family: var(--f-d); font-size: 28px; font-weight: 700; letter-spacing: -0.01em; color: var(--c-bg); margin-bottom: 24px;">Aesthetic Direction</div>
+    {% for kw in persona.aesthetic_keywords %}
+    <div style="font-family: var(--f-m); font-size: 13px; letter-spacing: 0.12em; text-transform: uppercase; color: rgba(10,10,10,0.5); margin-bottom: 10px;">{{ kw }}</div>
+    {% endfor %}
+  </div>
+
+  <!-- F: Dot matrix on dark -->
+  <div class="s06-cell s06-f">
+    <svg width="320" height="320" viewBox="0 0 320 320">
+      {% for row in range(8) %}
+        {% for col in range(8) %}
+          <circle cx="{{ col * 44 + 16 }}" cy="{{ row * 44 + 16 }}" r="{{ 3 + (row + col) % 3 }}"
+            fill="var(--c-fg)"
+            opacity="{{ 0.1 + ((row + col) % 5) * 0.12 }}"
+          />
+        {% endfor %}
+      {% endfor %}
+    </svg>
+  </div>
 </section>
 
-<!-- PAGE 4 — PALETTE -->
-<section class="page col">
-  <div class="label">Palette</div>
-  <h2 class="display text-xl">Five colors, one world</h2>
-  <div class="grid-5" style="margin-top: 32px;">
-    {% for c in brand.palette %}
-    <div class="swatch{% if c.role == 'primary' or c.role == 'fg' %} dark{% endif %}"
-         style="background: {{ c.hex }};">
-      <div>
-        <div class="mono text-xs upper">{{ c.role }}</div>
-        <div class="text-md" style="margin-top: 4px;">{{ c.name }}</div>
-        <div class="mono text-xs" style="margin-top: 4px;">{{ c.hex }}</div>
+<!-- ════════════════════════════════════════════════════ -->
+<!-- 07 — PRODUCT OBSESSION                              -->
+<!-- ════════════════════════════════════════════════════ -->
+<section class="slide s07">
+  <span class="bm">{{ brand.brand_name }}</span>
+  <span class="sn">07 —</span>
+
+  <!-- Hero mockup — spans full height -->
+  <div class="s07-hero">
+    {% if brand.mockups and brand.mockups|length > 0 %}
+      <img src="{{ brand.mockups[0].url }}" alt="{{ brand.mockups[0].label }}" class="fill">
+    {% else %}
+      <div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;">
+        <span style="font-family:var(--f-d);font-size:48px;font-weight:700;opacity:0.2;">{{ brand.brand_name }}</span>
+      </div>
+    {% endif %}
+  </div>
+
+  <!-- Sub mockup -->
+  <div class="s07-sub">
+    {% if brand.mockups and brand.mockups|length > 1 %}
+      <img src="{{ brand.mockups[1].url }}" alt="{{ brand.mockups[1].label }}" class="fill">
+    {% else %}
+      <div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;">
+        <span style="font-family:var(--f-d);font-size:32px;font-weight:700;opacity:0.2;">{{ brand.brand_name }}</span>
+      </div>
+    {% endif %}
+  </div>
+
+  <!-- Copy block -->
+  <div class="s07-copy">
+    <div class="s07-copy-q">"Obsessively<br>considered.<br>Every detail."</div>
+    {% if brand.voice and brand.voice.examples %}
+    <div class="s07-copy-sub">{{ brand.voice.examples[0][:80] }}</div>
+    {% endif %}
+  </div>
+
+  <!-- Accent bar -->
+  <div class="s07-accent">
+    <div class="s07-acc-t">{{ persona.age_range }} · {{ persona.location_archetype[:40] if persona.location_archetype else '' }}</div>
+  </div>
+</section>
+
+<!-- ════════════════════════════════════════════════════ -->
+<!-- 08 — PACKAGING EXPLORATION                          -->
+<!-- ════════════════════════════════════════════════════ -->
+<section class="slide s08">
+  <span class="bm">{{ brand.brand_name }}</span>
+  <span class="sn">08 —</span>
+
+  <!-- Main packaging image spans full height -->
+  <div class="s08-main">
+    {% if brand.mockups and brand.mockups|length > 0 %}
+      <img src="{{ brand.mockups[0].url }}" alt="" class="fill">
+    {% endif %}
+    <div class="s08-ov">
+      <div class="s08-ov-name">{{ brand.brand_name }}</div>
+      <div class="s08-ov-sub">Packaging System — v1.0</div>
+    </div>
+  </div>
+
+  <!-- Detail shot -->
+  <div class="s08-det">
+    {% if brand.mockups and brand.mockups|length > 1 %}
+      <img src="{{ brand.mockups[1].url }}" alt="" class="fill">
+    {% elif brand.logo %}
+      <div style="width:100%;height:100%;background:var(--c-p);display:flex;align-items:center;justify-content:center;">
+        <img src="{{ brand.logo.primary }}" alt="" style="max-width:60%;max-height:60%;object-fit:contain;">
+      </div>
+    {% endif %}
+  </div>
+
+  <!-- Copy block on accent -->
+  <div class="s08-copy">
+    <div class="s08-copy-t">Every<br>touchpoint<br>matters.</div>
+    <div class="s08-copy-s">Material, form, finish</div>
+  </div>
+</section>
+
+<!-- ════════════════════════════════════════════════════ -->
+<!-- 09 — EDITORIAL PHOTOGRAPHY                          -->
+<!-- ════════════════════════════════════════════════════ -->
+<section class="slide s09">
+  <span class="bm">{{ brand.brand_name }}</span>
+  <span class="sn">09 —</span>
+
+  <!-- Top strip: 3 thumbnails -->
+  <div class="s09-strip">
+    <div class="s09-th">
+      {% if brand.social_kit and brand.social_kit|length > 2 %}
+        <img src="{{ brand.social_kit[2].url }}" alt="" class="fill">
+      {% elif brand.mockups %}
+        <img src="{{ brand.mockups[0].url }}" alt="" class="fill">
+      {% endif %}
+      <span class="s09-cap">Editorial 01 — Campaign</span>
+    </div>
+    <div class="s09-th">
+      {% if brand.social_kit and brand.social_kit|length > 4 %}
+        <img src="{{ brand.social_kit[4].url }}" alt="" class="fill">
+      {% elif brand.mockups and brand.mockups|length > 1 %}
+        <img src="{{ brand.mockups[1].url }}" alt="" class="fill">
+      {% endif %}
+      <span class="s09-cap">Lifestyle 02 — Studio</span>
+    </div>
+    <div class="s09-th">
+      {% if brand.social_kit and brand.social_kit|length > 3 %}
+        <img src="{{ brand.social_kit[3].url }}" alt="" class="fill">
+      {% elif brand.logo %}
+        <div style="width:100%;height:100%;background:var(--c-a);display:flex;align-items:center;justify-content:center;">
+          <img src="{{ brand.logo.mono_light }}" alt="" style="max-width:55%;max-height:55%;object-fit:contain;">
+        </div>
+      {% endif %}
+      <span class="s09-cap">Story 03 — Closeup</span>
+    </div>
+  </div>
+
+  <!-- Hero image -->
+  <div class="s09-hero">
+    {% if brand.social_kit and brand.social_kit|length > 4 %}
+      <img src="{{ brand.social_kit[4].url }}" alt="" class="fill">
+    {% elif brand.social_kit and brand.social_kit|length > 2 %}
+      <img src="{{ brand.social_kit[2].url }}" alt="" class="fill">
+    {% elif brand.mockups %}
+      <img src="{{ brand.mockups[0].url }}" alt="" class="fill">
+    {% endif %}
+    <div class="s09-hero-ov">
+      <div class="s09-hero-ov-t">Art direction<br>by {{ brand.brand_name }}.</div>
+      <div class="s09-hero-ov-s">{{ persona.aesthetic_keywords[0] if persona.aesthetic_keywords else '' }} · editorial</div>
+    </div>
+  </div>
+</section>
+
+<!-- ════════════════════════════════════════════════════ -->
+<!-- 10 — CROSS-PLATFORM APPLICATION                     -->
+<!-- ════════════════════════════════════════════════════ -->
+<section class="slide s10">
+  <span class="bm">{{ brand.brand_name }}</span>
+  <span class="sn">10 —</span>
+
+  <!-- Phone column -->
+  <div class="s10-phone">
+    <div class="phone">
+      <div class="phone-notch"></div>
+      <div class="phone-scr">
+        <div class="phone-scr-brand">{{ brand.brand_name }}</div>
+        <div class="phone-scr-tag">{{ brand.tagline[:50] if brand.tagline else '' }}</div>
+        <div class="phone-scr-btn">Shop Now</div>
       </div>
     </div>
-    {% endfor %}
   </div>
-  {% if contrast_ratio %}
-  <div class="label" style="margin-top: 24px;">Body contrast ratio: {{ contrast_ratio }}:1 — WCAG AA</div>
-  {% endif %}
-</section>
 
-<!-- PAGE 5 — TYPOGRAPHY -->
-<section class="page col">
-  <div class="label">Typography</div>
-  <h2 class="display text-xl">Two voices in type</h2>
-  {% if brand.typography %}
-  <div style="margin-top: 32px;">
-    <div class="mono text-xs upper">Display · {{ brand.typography.display.family }}</div>
-    <div class="display text-5xl" style="margin-top: 8px;">Aa Bb Cc</div>
-    <div class="display text-xl" style="margin-top: 16px;">The quick brown fox jumps over the lazy dog.</div>
-  </div>
-  <div style="margin-top: 48px;">
-    <div class="mono text-xs upper">Body · {{ brand.typography.body.family }}</div>
-    <p class="text-md" style="margin-top: 8px; max-width: 600px;">
-      The quick brown fox jumps over the lazy dog. Pack my box with five dozen
-      liquor jugs. The five boxing wizards jump quickly. How vexingly quick
-      daft zebras jump.
-    </p>
-  </div>
-  {% endif %}
-</section>
-
-<!-- PAGE 6 — VOICE -->
-<section class="page col">
-  <div class="label">Voice</div>
-  {% if brand.voice %}
-  <p class="pullquote" style="margin-top: 16px; max-width: 600px;">{{ brand.voice.tone }}</p>
-  <div class="grid-2" style="margin-top: 32px;">
-    <div>
-      <div class="label">Do</div>
-      <ul style="list-style: none; margin-top: 8px;">
-        {% for d in brand.voice.do %}<li style="padding: 4px 0;">— {{ d }}</li>{% endfor %}
-      </ul>
-    </div>
-    <div>
-      <div class="label">Don't</div>
-      <ul style="list-style: none; margin-top: 8px;">
-        {% for d in brand.voice.dont %}<li style="padding: 4px 0;">— {{ d }}</li>{% endfor %}
-      </ul>
+  <!-- Desktop column -->
+  <div class="s10-desk">
+    <div class="desktop">
+      <div class="desktop-bar">
+        <div class="desktop-dot" style="background:#ff5f57;"></div>
+        <div class="desktop-dot" style="background:#febc2e;"></div>
+        <div class="desktop-dot" style="background:#28c840;"></div>
+      </div>
+      <div class="desktop-scr">
+        <div class="desktop-nav">
+          <div class="desktop-logo">{{ brand.brand_name }}</div>
+          <div class="desktop-links">
+            <div class="desktop-link"></div>
+            <div class="desktop-link"></div>
+            <div class="desktop-link" style="opacity:0.4;"></div>
+          </div>
+        </div>
+        <div class="desktop-hero-block">
+          <div class="desktop-hero-txt">{{ brand.brand_name }}</div>
+        </div>
+        <div class="desktop-cards">
+          <div class="desktop-card" style="background:var(--c-p);opacity:0.8;"></div>
+          <div class="desktop-card" style="background:var(--c-a);opacity:0.6;"></div>
+          <div class="desktop-card" style="background:var(--c-s);opacity:0.7;"></div>
+        </div>
+      </div>
     </div>
   </div>
-  <div style="margin-top: 32px;">
-    <div class="label">In the wild</div>
-    {% for ex in brand.voice.examples %}
-    <p class="text-md italic" style="margin-top: 8px;">"{{ ex }}"</p>
-    {% endfor %}
-  </div>
-  {% endif %}
-</section>
 
-<!-- PAGE 7 — MOCKUPS -->
-{% if brand.mockups %}
-<section class="page col">
-  <div class="label">Applied</div>
-  <h2 class="display text-xl">In the world</h2>
-  <div class="grid-2" style="margin-top: 32px;">
-    {% for m in brand.mockups[:4] %}
-    <div class="col">
-      <img src="{{ m.url }}" alt="{{ m.label }}" style="width: 100%;">
-      <div class="mono text-xs upper">{{ m.label }}</div>
+  <!-- Merch column -->
+  <div class="s10-merch">
+    <div class="s10-mt">
+      {% if brand.mockups and brand.mockups|length > 0 %}
+        <img src="{{ brand.mockups[0].url }}" alt="" class="fill">
+      {% else %}
+        <div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;">
+          <span style="font-family:var(--f-m);font-size:11px;letter-spacing:0.14em;text-transform:uppercase;color:var(--c-dim);">Tee</span>
+        </div>
+      {% endif %}
+    </div>
+    <div class="s10-mt">
+      {% if brand.mockups and brand.mockups|length > 1 %}
+        <img src="{{ brand.mockups[1].url }}" alt="" class="fill">
+      {% else %}
+        <div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;">
+          <span style="font-family:var(--f-m);font-size:11px;letter-spacing:0.14em;text-transform:uppercase;color:var(--c-dim);">Tote</span>
+        </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Social strip — spans all 3 columns -->
+  <div class="s10-social">
+    {% for i in [0, 1, 2, 3] %}
+    <div class="s10-sc">
+      {% if brand.social_kit and brand.social_kit|length > i %}
+        <img src="{{ brand.social_kit[i].url }}" alt="" class="fill">
+      {% else %}
+        <div class="s10-sc-fill">
+          <span class="s10-sc-text fd">{{ brand.brand_name[0] | upper }}</span>
+        </div>
+      {% endif %}
     </div>
     {% endfor %}
   </div>
-</section>
-{% endif %}
-
-<!-- PAGE 8 — SOCIAL -->
-{% if brand.social_kit %}
-<section class="page col">
-  <div class="label">Social</div>
-  <h2 class="display text-xl">Posting kit</h2>
-  <div class="grid-4" style="margin-top: 32px;">
-    {% for s in brand.social_kit %}
-    <div class="col">
-      <img src="{{ s.url }}" alt="{{ s.label }}" style="width: 100%;">
-      <div class="mono text-xs upper">{{ s.label }}</div>
-    </div>
-    {% endfor %}
-  </div>
-</section>
-{% endif %}
-
-<!-- PAGE 9 — BACK COVER -->
-<section class="page center col">
-  {% if brand.logo %}
-  <img src="{{ brand.logo.mono_dark }}" alt="" style="width: 96px; height: 96px; object-fit: contain;">
-  {% endif %}
-  <p class="mono text-xs upper" style="margin-top: 16px;">Generated by Halo · {{ date }}</p>
-  <p class="mono text-xs" style="margin-top: 4px;">halo.app</p>
 </section>
 
 </body>

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 import re
@@ -8,8 +9,8 @@ from typing import Any
 
 from anthropic import AsyncAnthropic
 
-from ..config import get_settings
 from ..models.schemas import AgencyMatch, Persona
+from ._openai_client import get_claude_client
 
 MODEL = "claude-haiku-4-5-20251001"
 
@@ -95,12 +96,20 @@ def _ensure_agency_cache() -> None:
         _agency_cache[agency["id"]] = agency
 
 
+def _why_line_template(agency: dict[str, Any], overlap_tags: set[str]) -> str:
+    tags = list(overlap_tags)[:2] if overlap_tags else agency.get("specialty_tags", [])[:2]
+    tag_str = " and ".join(tags) if tags else "their aesthetic"
+    return f"Strong fit on {tag_str} — aligns with the brand's visual direction"
+
+
 async def _why_line(
-    client: AsyncAnthropic,
+    client: AsyncAnthropic | None,
     agency: dict[str, Any],
     persona: Persona,
     overlap_tags: set[str],
 ) -> str:
+    if client is None:
+        return _why_line_template(agency, overlap_tags)
     overlap_str = ", ".join(overlap_tags) if overlap_tags else "visual and tonal alignment"
     prompt = (
         f"Why does this agency match this customer? In under 20 words, be specific.\n\n"
@@ -108,50 +117,54 @@ async def _why_line(
         f"CUSTOMER: {persona.summary}\n"
         f"AESTHETIC OVERLAP: {overlap_str}"
     )
-    resp = await client.messages.create(
-        model=MODEL,
-        max_tokens=60,
-        temperature=0.4,
-        messages=[{"role": "user", "content": prompt}],
-    )
-    return resp.content[0].text.strip().rstrip(".")
+    try:
+        resp = await client.messages.create(
+            model=MODEL,
+            max_tokens=60,
+            temperature=0.4,
+            messages=[{"role": "user", "content": prompt}],
+        )
+        return resp.content[0].text.strip().rstrip(".")
+    except Exception as exc:
+        logger.warning("_why_line failed (%s) — using template", exc)
+        return _why_line_template(agency, overlap_tags)
 
 
 async def match(persona: Persona) -> list[AgencyMatch]:
-    settings = get_settings()
-    client = AsyncAnthropic(api_key=settings.anthropic_api_key or None)
+    client = get_claude_client()
 
     _ensure_agency_cache()
 
     persona_terms = _persona_terms(persona)
 
-    # Score all agencies with keyword overlap (no embeddings needed)
-    scored: list[tuple[float, dict]] = []
-    for agency in _agency_cache.values():
-        score = _tag_overlap_score(agency, persona_terms)
-        scored.append((score, agency))
-
-    scored.sort(key=lambda x: x[0], reverse=True)
+    scored: list[tuple[float, dict]] = sorted(
+        ((_tag_overlap_score(a, persona_terms), a) for a in _agency_cache.values()),
+        key=lambda x: x[0],
+        reverse=True,
+    )
     top3 = scored[:3]
 
-    matches: list[AgencyMatch] = []
-    for raw_score, agency in top3:
-        overlap = set(persona.aesthetic_keywords) & set(agency.get("aesthetic_tags", []))
-        why = await _why_line(client, agency, persona, overlap)
+    overlaps = [
+        set(persona.aesthetic_keywords) & set(agency.get("aesthetic_tags", []))
+        for _, agency in top3
+    ]
+    why_lines = await asyncio.gather(*[
+        _why_line(client, agency, persona, overlap)
+        for (_, agency), overlap in zip(top3, overlaps)
+    ])
 
-        matches.append(
-            AgencyMatch(
-                agency_id=agency["id"],
-                name=agency["name"],
-                blurb=agency["blurb"],
-                specialty_tags=agency.get("specialty_tags", []),
-                aesthetic_tags=agency.get("aesthetic_tags", []),
-                notable_clients=agency.get("notable_clients", []),
-                min_budget=agency.get("min_budget", ""),
-                website=agency.get("website", ""),
-                match_score=_rescale(raw_score),
-                why=why,
-            )
+    return [
+        AgencyMatch(
+            agency_id=agency["id"],
+            name=agency["name"],
+            blurb=agency["blurb"],
+            specialty_tags=agency.get("specialty_tags", []),
+            aesthetic_tags=agency.get("aesthetic_tags", []),
+            notable_clients=agency.get("notable_clients", []),
+            min_budget=agency.get("min_budget", ""),
+            website=agency.get("website", ""),
+            match_score=_rescale(raw_score),
+            why=why,
         )
-
-    return matches
+        for (raw_score, agency), why in zip(top3, why_lines)
+    ]

@@ -459,13 +459,28 @@ div[style*="overflowY: 'auto'"]::-webkit-scrollbar { display: none; }
 .marquee-phone-wrap {
   position: relative;
   z-index: 3;
-  width: 560px;
-  height: 920px;
+  width: 340px;
+  height: 700px;
   display: flex;
   align-items: center;
   justify-content: center;
 }
 
+/*
+ * Scales the 375×768 phone shell to 80% (300×614px visual).
+ * Negative margins collapse the layout footprint to match the visual size so
+ * the parent flex container centres on the actual rendered phone, not the
+ * larger pre-scale bounding box.
+ *   vertical:   768 × 0.20 / 2 = 76.8  → -77px
+ *   horizontal: 375 × 0.20 / 2 = 37.5  → -38px
+ */
+.phone-shell-scaler {
+  transform: scale(0.80);
+  transform-origin: center center;
+  margin: -77px -38px;
+}
+
+/* Retained for phone-3d-scene.tsx (unused on the landing page but kept for reference) */
 .phone-3d-canvas {
   position: relative;
   width: 100%;

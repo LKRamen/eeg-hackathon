@@ -5,7 +5,25 @@
       "Bash(pip install *)",
       "Bash(python _dev/_tmp_roylee_test.py)",
       "Bash(python -X utf8 _dev/_tmp_roylee_test.py)",
-      "Bash(python -X utf8 _dev/_tmp_gtm_test.py)"
+      "Bash(python -X utf8 _dev/_tmp_gtm_test.py)",
+      "Bash(python -c \"from config import get_settings; s = get_settings\\(\\); print\\('anthropic_api_key:', bool\\(s.anthropic_api_key\\)\\); print\\('hf_token:', bool\\(s.hf_token\\)\\); print\\('supabase_url:', bool\\(s.supabase_url\\)\\)\")",
+      "Bash(python *)",
+      "Bash(pip list *)",
+      "Bash(curl -s -X POST http://localhost:8001/jobs -H 'Content-Type: application/json' -d '{\"handle\":\"testuser\",\"product_idea\":\"eco water bottles\",\"platform\":\"instagram\"}')",
+      "Bash(curl -s http://localhost:8001/jobs/0f3b967b-853c-441d-b6bf-042347263d92)",
+      "Bash(pkill -f \"uvicorn.*8001\")",
+      "Bash(pnpm list *)",
+      "Bash(curl -s http://localhost:8002/health)",
+      "Bash(pkill -f \"uvicorn.*8002\")",
+      "Bash(curl -s -X POST http://localhost:8003/jobs -H 'Content-Type: application/json' -d '{\"handle\":\"testuser\",\"product_idea\":\"eco water bottles\",\"platform\":\"instagram\"}')",
+      "Bash(curl -s http://localhost:8003/jobs/b21a82b1-fba1-4875-89be-b70732aa4098)",
+      "Bash(python -m uvicorn apps.api.main:app --reload)",
+      "Bash(echo \"API PID: $!\")",
+      "Bash(\"/c/Users/lkrah/AppData/Roaming/npm/pnpm\" dev *)",
+      "Bash(echo \"Web PID: $!\")",
+      "Read(//tmp/**)",
+      "Bash(npx tsc *)",
+      "Bash(node_modules/.bin/tsc --noEmit)"
     ]
   }
 }

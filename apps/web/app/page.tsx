@@ -1,7 +1,7 @@
 "use client";
 
-import dynamic from "next/dynamic";
 import { useEffect, useRef } from "react";
+import { CSSPhoneMockup } from "../components/phone-css-mockup";
 
 const PHRASE = "grow with stencil";
 const MARQUEE_ITEMS = Array.from({ length: 8 }, (_, index) => `${PHRASE} ${index}`);
@@ -13,38 +13,22 @@ const MARQUEE_ROWS = [
   { id: "far-bottom", rowClass: "marquee-row marquee-row-far-bottom", trackClass: "marquee-track marquee-track-fast", wordClass: "marquee-word" },
 ] as const;
 
-const Phone3DScene = dynamic(() => import("./phone-3d-scene"), {
-  ssr: false,
-});
-
 export default function HomePage() {
   const pointerRef = useRef({ x: 0, y: 0 });
   const phoneHoverRef = useRef(false);
 
   useEffect(() => {
-    const resetTilt = () => {
-      pointerRef.current.x = 0;
-      pointerRef.current.y = 0;
+    const reset = () => { pointerRef.current.x = 0; pointerRef.current.y = 0; };
+    const onMove = (e: PointerEvent) => {
+      if (phoneHoverRef.current) { reset(); return; }
+      pointerRef.current.x = e.clientX / window.innerWidth - 0.5;
+      pointerRef.current.y = e.clientY / window.innerHeight - 0.5;
     };
-
-    const handlePointerMove = (event: PointerEvent) => {
-      if (phoneHoverRef.current) {
-        resetTilt();
-        return;
-      }
-
-      pointerRef.current.x = event.clientX / window.innerWidth - 0.5;
-      pointerRef.current.y = event.clientY / window.innerHeight - 0.5;
-    };
-
-    const handlePointerLeave = () => resetTilt();
-
-    window.addEventListener("pointermove", handlePointerMove);
-    window.addEventListener("pointerleave", handlePointerLeave);
-
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerleave", reset);
     return () => {
-      window.removeEventListener("pointermove", handlePointerMove);
-      window.removeEventListener("pointerleave", handlePointerLeave);
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerleave", reset);
     };
   }, []);
 
@@ -83,7 +67,7 @@ export default function HomePage() {
             phoneHoverRef.current = false;
           }}
         >
-          <Phone3DScene pointerRef={pointerRef} phoneHoverRef={phoneHoverRef} />
+          <CSSPhoneMockup pointerRef={pointerRef} phoneHoverRef={phoneHoverRef} />
         </div>
       </div>
     </main>

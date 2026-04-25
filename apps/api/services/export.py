@@ -14,6 +14,13 @@ from ._export_zip import build_brand_kit_zip
 from ._palette import contrast_ratio
 from ._template_helpers import jinja_env, palette_tokens, render_pdf
 
+
+def _text_color(hex_color: str) -> str:
+    h = hex_color.lstrip("#")
+    r, g, b = int(h[0:2], 16), int(h[2:4], 16), int(h[4:6], 16)
+    lum = 0.299 * r + 0.587 * g + 0.114 * b
+    return "#0a0a0a" if lum > 140 else "#f0ede6"
+
 __all__ = [
     "build_brand_guide",
     "build_pitch_deck",
@@ -36,10 +43,16 @@ def _body_contrast(brand: BrandAssets) -> Optional[str]:
 
 def render_brand_guide_html(brand: BrandAssets, persona: Persona) -> str:
     template = jinja_env().get_template("brand_guide.html")
+    tokens = palette_tokens(brand)
+    palette_ext = [
+        {"hex": c.hex, "role": c.role, "name": c.name, "text_color": _text_color(c.hex)}
+        for c in brand.palette
+    ]
     return template.render(
         brand=brand,
         persona=persona,
-        tokens=palette_tokens(brand),
+        tokens=tokens,
+        palette=palette_ext,
         contrast_ratio=_body_contrast(brand),
         date=dt.date.today().isoformat(),
     )
@@ -55,7 +68,7 @@ async def build_brand_guide(
     Caller treats the returned URL as the brand_guide_pdf_url.
     """
     html = render_brand_guide_html(brand, persona)
-    pdf = render_pdf(html)
+    pdf = render_pdf(html, use_base_css=False)
 
     if pdf is not None:
         return await storage.upload_image(

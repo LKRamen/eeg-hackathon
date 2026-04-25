@@ -5,7 +5,7 @@
   "packageManager": "pnpm@9.0.0",
   "scripts": {
     "dev:web": "pnpm --filter @halo/web dev",
-    "dev:api": "cd apps/api && uvicorn main:app --reload",
+    "dev:api": "python -m uvicorn apps.api.main:app --reload",
     "build:web": "pnpm --filter @halo/web build",
     "lint:web": "pnpm --filter @halo/web lint"
   },

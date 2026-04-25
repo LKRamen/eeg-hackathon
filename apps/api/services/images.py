@@ -219,24 +219,15 @@ _LOGO_INLINE_NEGATIVE = (
 
 
 def _logo_prompt(brand_name: str, product_idea: str, persona: Persona) -> str:
-    """Build a logo prompt per task 3.2 spec.
-
-    Key principles applied:
-    - Inline NEGATIVE section (FLUX ignores negative_prompt parameter)
-    - Keyword-specific historical reference for visual specificity
-    - Keyword-specific shape bias to prevent generic swirl/loop output
-    - 16x16px scalability requirement
-    """
+    """Build a logo prompt that produces premium geometric icon marks."""
     kw = persona.aesthetic_keywords
 
-    # Pick the most specific historical reference from the first matching keyword
     reference = next(
         (ref for k, ref in _KEYWORD_REFERENCES.items()
          if any(k in w.lower() for w in kw)),
         "1960s Swiss International Style and Saul Bass film poster identity design",
     )
 
-    # Pick shape bias from the first matching keyword
     shape_bias = next(
         (shape for k, shape in _KEYWORD_SHAPE.items()
          if any(k in w.lower() for w in kw)),
@@ -246,16 +237,14 @@ def _logo_prompt(brand_name: str, product_idea: str, persona: Persona) -> str:
     aesthetics = ", ".join(kw)
 
     return (
-        f"Iconic minimalist vector logo mark for the brand '{brand_name}'. "
-        f"The brand makes: {product_idea}. "
-        f"Visual aesthetic: {aesthetics}. "
-        f"Shape: {shape_bias}. "
-        f"A single symbol — not literal, not illustrative. "
-        f"Solid color on pure white background. Centered. "
-        f"Designed for scaling: must read clearly at 16x16 pixels. "
-        f"Inspired by: {reference}. "
-        f"Also inspired by: early MTV bumpers, Saul Bass film titles. "
-        f"Clean vector art, flat 2D, single color on white. "
+        f"Minimal geometric icon mark, vector-clean, single color on pure white background. "
+        f"Brand: '{brand_name}'. Product: {product_idea}. "
+        f"No text, no letters, no letterforms. "
+        f"Bold abstract shape — {shape_bias}. "
+        f"Premium creative brand aesthetic: {aesthetics}. "
+        f"Centered composition, maximum negative space, scalable to 16x16px. "
+        f"Inspired by {reference}. "
+        f"Designed for a brand identity system — not a product illustration. "
         f"{_LOGO_INLINE_NEGATIVE}"
     )
 
@@ -365,55 +354,71 @@ async def generate_logo_set(
 _MockupLabel = Literal["tee", "tote", "hat", "sticker"]
 
 _MOCKUP_NEGATIVE = (
-    "text, readable letters, watermark, model, mannequin, "
-    "graphic design overlays, blurry, low quality, CGI, 3D render"
+    "text, readable letters, watermark, mannequin, "
+    "busy background, blurry, low quality, amateur photography, stock photo"
 )
 
 
-def _mockup_prompt(label: _MockupLabel, persona: Persona) -> tuple[str, int, int]:
+def _mockup_prompt(
+    label: _MockupLabel,
+    persona: Persona,
+    brand_color_hex: str = "#1a1a1a",
+) -> tuple[str, int, int]:
     kw = persona.aesthetic_keywords
-    tee_color, surface = _aesthetic_context(kw)
+    kw_str = kw[0] if kw else "minimal"
+    _, surface = _aesthetic_context(kw)
 
     if label == "tee":
         return (
-            f"Editorial product photograph of a {tee_color} cotton crewneck t-shirt, "
-            f"{kw[0] if kw else 'minimal'} aesthetic. "
+            f"Oversized premium t-shirt, flat lay editorial product photography. "
+            f"Dark studio background, {kw_str} aesthetic. "
             f"Small minimalist abstract emblem at left chest. "
-            f"Flat lay on {surface}. Natural daylight, magazine quality. No people."
+            f"Colored gel lighting in {brand_color_hex} and complementary tones. "
+            f"Surreal composition, high-end streetwear brand campaign. "
+            f"4k photorealistic, magazine quality, Dazed & Confused aesthetic. "
+            f"No people, no models."
         ), 1024, 1024
 
     if label == "tote":
-        hook = "brushed steel hook" if "brutalist" in " ".join(kw).lower() else "wooden peg"
         return (
-            f"Editorial product photograph of a canvas tote bag on a {hook}, "
-            f"{kw[0] if kw else 'minimal'} aesthetic. "
-            f"Small minimalist abstract emblem on front. Natural daylight, magazine quality."
+            f"Minimal canvas tote bag floating product shot. "
+            f"Brand color {brand_color_hex}, gradient background from dark to {kw_str}. "
+            f"Editorial photography, premium creative studio. "
+            f"Soft dramatic shadows, slightly surreal composition. "
+            f"4k photorealistic, i-D magazine aesthetic. "
+            f"No people, no models."
         ), 1024, 1024
 
     if label == "hat":
-        cap_color = "charcoal" if "dark" in " ".join(kw).lower() else "off-white"
         return (
-            f"Editorial product photo of a structured 6-panel {cap_color} cap, "
-            f"{kw[0] if kw else 'minimal'} aesthetic. Small embroidered emblem on front. "
-            f"Side angle on {surface}, no model, natural daylight."
+            f"Structured premium cap, side profile editorial product photography. "
+            f"{kw_str} aesthetic, dark studio environment. "
+            f"Small embroidered emblem on front panel. "
+            f"Dramatic directional lighting, magazine quality. 4k photorealistic."
         ), 1024, 1024
 
     return (
-        f"Top-down photo of die-cut vinyl stickers on {surface}, "
-        f"abstract minimalist shapes, {kw[0] if kw else 'minimal'} aesthetic. "
-        f"Glossy finish, magazine quality."
+        f"Top-down product shot of premium branded merchandise on {surface}. "
+        f"{kw_str} aesthetic, editorial photography, soft natural light. "
+        f"Magazine quality, 4k photorealistic."
     ), 1024, 1024
 
 
-async def _generate_mockup_hf(label: _MockupLabel, persona: Persona, job_id: str) -> Mockup:
-    prompt, w, h = _mockup_prompt(label, persona)
+async def _generate_mockup_hf(
+    label: _MockupLabel,
+    persona: Persona,
+    job_id: str,
+    brand_color_hex: str = "#1a1a1a",
+) -> Mockup:
+    prompt, w, h = _mockup_prompt(label, persona, brand_color_hex)
     img = await _hf_generate(prompt, negative_prompt=_MOCKUP_NEGATIVE, width=w, height=h)
     url = await storage.upload_pil(img, "brand-assets", f"jobs/{job_id}/mockup_{label}.png")
     return Mockup(label=label, url=url)
 
 
 async def _generate_mockup_canva(
-    label: _MockupLabel, persona: Persona, template_id: str, job_id: str
+    label: _MockupLabel, persona: Persona, template_id: str, job_id: str,
+    brand_color_hex: str = "#1a1a1a",
 ) -> Mockup:
     try:
         data = [
@@ -425,7 +430,7 @@ async def _generate_mockup_canva(
         url = await storage.upload_url(png_url, "brand-assets", f"jobs/{job_id}/mockup_{label}.png")
         return Mockup(label=label, url=url)
     except Exception:
-        return await _generate_mockup_hf(label, persona, job_id)
+        return await _generate_mockup_hf(label, persona, job_id, brand_color_hex)
 
 
 async def _generate_mockup_pillow(
@@ -468,9 +473,9 @@ async def generate_mockups(
     tasks = []
     for i, label in enumerate(include):
         if template_ids and i < len(template_ids):
-            tasks.append(_generate_mockup_canva(label, persona, template_ids[i], job_id))
+            tasks.append(_generate_mockup_canva(label, persona, template_ids[i], job_id, brand_color_hex))
         elif hf_token:
-            tasks.append(_generate_mockup_hf(label, persona, job_id))
+            tasks.append(_generate_mockup_hf(label, persona, job_id, brand_color_hex))
         else:
             tasks.append(_generate_mockup_pillow(label, brand_name, brand_color_hex, job_id))
 
@@ -519,20 +524,26 @@ def _compose_text_post(
 
 async def _lifestyle_hf(persona: Persona, width: int, height: int, job_id: str, label: str) -> str:
     kw = persona.aesthetic_keywords
+    kw_str = kw[0] if kw else "minimal"
     scene_map = {
-        "brutalist": "raw concrete cityscape at dusk",
-        "organic": "sun-drenched linen and dried botanicals",
-        "y2k": "chrome surfaces with holographic reflections",
-        "neon": "rain-soaked neon-lit alleyway at night",
-        "pastel": "soft morning light through sheer curtains",
+        "brutalist": "raw concrete brutalist architecture, dramatic shadows",
+        "concrete": "raw concrete brutalist architecture, dramatic shadows",
+        "organic": "sun-drenched natural linen and dried botanicals, warm light",
+        "y2k": "chrome surfaces, holographic reflections, iridescent light",
+        "neon": "rain-soaked neon-lit alleyway at night, colored gel reflections",
+        "pastel": "soft morning light, sheer curtains, airy studio",
+        "editorial": "high-fashion editorial environment, colored lighting gels",
+        "tokyo": "Tokyo street at night, neon signs, cinematic atmosphere",
     }
     scene = next(
         (v for k, v in scene_map.items() if any(k in w.lower() for w in kw)),
-        "atmospheric editorial scene",
+        "atmospheric urban environment, colored gel lighting",
     )
     prompt = (
-        f"Atmospheric lifestyle photograph, {kw[0] if kw else 'minimal'} aesthetic. "
-        f"{scene}. Editorial composition, magazine quality, natural light."
+        f"Fashion editorial photography, creative professional, {kw_str} aesthetic. "
+        f"{scene}. Slightly surreal high-concept composition. "
+        f"i-D magazine aesthetic, brand campaign quality. "
+        f"4k photorealistic, cinematic color grading, intentional negative space."
     )
     img = await _hf_generate(prompt, negative_prompt=_SOCIAL_NEGATIVE, width=width, height=height)
     return await storage.upload_pil(img, "brand-assets", f"jobs/{job_id}/social_{label}.png")
