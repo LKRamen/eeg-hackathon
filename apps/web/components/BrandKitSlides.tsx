@@ -41,7 +41,7 @@ function lum(hex: string): number {
 }
 const dark = (hex: string) => lum(hex) < 140;
 
-const BG_SEQ = ["primary","bg","secondary","fg","bg","primary","bg","fg","secondary","primary"] as const;
+const BG_SEQ = ["primary","bg","secondary","fg","bg","primary","bg","fg","secondary","primary","bg"] as const;
 
 export function getPanelTheme(i: number, palette: Palette): PanelTheme {
   const bgRole = BG_SEQ[i] ?? "bg";
@@ -87,7 +87,7 @@ function Chrome({ n, name, t }: { n: number; name: string; t: PanelTheme }) {
         {name}
       </span>
       <span style={{ fontFamily: "'Space Mono',monospace", fontSize: "10px", letterSpacing: "0.15em", color: t.accent }}>
-        {String(n + 1).padStart(2, "0")} / 10
+        {String(n + 1).padStart(2, "0")} / 11
       </span>
     </div>
   );
@@ -806,7 +806,195 @@ function CrossPlatform({ brand, palette }: { brand: BrandResult["brand_assets"];
   );
 }
 
-// ─── Panel 10: Motion + Retail ────────────────────────────────────────────────
+// ─── Panel 10: Social Captions ───────────────────────────────────────────────
+
+function buildCaptions(brand: BrandResult["brand_assets"], persona: BrandResult["persona"]) {
+  const brandName  = brand.brand_name;
+  const tagline    = brand.tagline;
+  const examples   = brand.voice?.examples ?? [];
+  const voiceTraits = persona?.voice_traits ?? [];
+  const keywords   = persona?.aesthetic_keywords ?? [];
+  const interests  = persona?.interests ?? [];
+
+  const toTag = (s: string) =>
+    `#${s.toLowerCase().split(/[\s,]+/)[0].replace(/[^a-z0-9]/g, "")}`;
+  const brandTag    = toTag(brandName);
+  const iTagsFull   = interests.slice(0, 4).map(toTag);
+  const kTagsFull   = keywords.slice(0, 2).map(toTag);
+
+  return [
+    {
+      icon: "📸",
+      name: "Instagram",
+      captions: [
+        {
+          text: `${examples[0] ?? tagline}\n\n${keywords.slice(0, 2).join(". ")}.`,
+          tags: [brandTag, ...iTagsFull.slice(0, 3)].join(" "),
+        },
+        {
+          text: `${brandName} — ${tagline}\n\n${keywords[0] ?? ""} design. ${voiceTraits[0] ?? "honest"} by default.`,
+          tags: [brandTag, kTagsFull[0], "#lifestyle"].filter(Boolean).join(" "),
+        },
+        {
+          text: `built for people who ${interests[0] ?? "move with intention"}.\n\nnot for everyone. for you.`,
+          tags: [brandTag, iTagsFull[1], "#brand"].filter(Boolean).join(" "),
+        },
+      ],
+    },
+    {
+      icon: "🎵",
+      name: "TikTok",
+      captions: [
+        {
+          text: `POV: you found the brand that actually gets it 👀\n\n${examples[1] ?? tagline}`,
+          tags: `${brandTag} #fyp #brand`,
+        },
+        {
+          text: `${voiceTraits[0] ?? "Real"}. ${voiceTraits[1] ?? "Direct"}. ${brandName}.\n\n${tagline}`,
+          tags: [brandTag, "#fyp", kTagsFull[0]].filter(Boolean).join(" "),
+        },
+        {
+          text: `the ${keywords[0] ?? "minimal"} brand for people who ${interests[0] ?? "know the difference"}`,
+          tags: `#tiktokshop ${brandTag} ${iTagsFull[0] ?? ""} #fyp`.trim(),
+        },
+      ],
+    },
+    {
+      icon: "𝕏",
+      name: "Twitter / X",
+      captions: [
+        {
+          text: examples[0] ?? tagline,
+          tags: [brandTag, iTagsFull[0]].filter(Boolean).join(" "),
+        },
+        {
+          text: `${tagline}\n\nwe said what we said.`,
+          tags: brandTag,
+        },
+        {
+          text: `${keywords.slice(0, 2).join(" + ")} brand for people who ${interests[0] ?? "value craft"}.\n\nthat's ${brandName}.`,
+          tags: [brandTag, kTagsFull[0]].filter(Boolean).join(" "),
+        },
+      ],
+    },
+  ];
+}
+
+function SocialCaptions({
+  brand, persona, palette,
+}: {
+  brand: BrandResult["brand_assets"];
+  persona: BrandResult["persona"];
+  palette: Palette;
+}) {
+  const t = getPanelTheme(9, palette);
+  const [copied, setCopied] = useState<string | null>(null);
+
+  const displayFont = `'${brand.typography?.display?.family ?? "Space Grotesk"}','Space Grotesk',sans-serif`;
+  const bodyFont    = `'${brand.typography?.body?.family ?? "Inter"}',Inter,sans-serif`;
+  const voiceTraits = persona?.voice_traits ?? [];
+  const platforms   = buildCaptions(brand, persona);
+
+  const handleCopy = (text: string, tags: string, id: string) => {
+    navigator.clipboard.writeText(`${text}\n\n${tags}`).catch(() => {});
+    setCopied(id);
+    setTimeout(() => setCopied(null), 2000);
+  };
+
+  return (
+    <section className="panel" style={{ background: t.bg }}>
+      <Chrome n={9} name={brand.brand_name} t={t} />
+
+      <div style={{ height: "100%", display: "flex", flexDirection: "column", padding: "100px 6% 60px", gap: 24 }}>
+        {/* Header */}
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", flexShrink: 0 }}>
+          <div>
+            <div style={{ fontFamily: "'Space Mono',monospace", fontSize: "10px", letterSpacing: "0.25em", textTransform: "uppercase", color: t.accent, marginBottom: 12 }}>
+              10 — Social Captions
+            </div>
+            <h2 style={{ fontFamily: displayFont, fontSize: "clamp(28px,4vw,52px)", fontWeight: 700, color: t.fg, margin: 0 }}>
+              Ready to Post
+            </h2>
+          </div>
+          <p style={{ fontFamily: "'Space Mono',monospace", fontSize: 11, color: t.dim, maxWidth: 260, textAlign: "right", lineHeight: 1.7 }}>
+            Voice: {voiceTraits.join(" · ") || brand.voice?.tone || "—"}
+          </p>
+        </div>
+
+        {/* 3-column platform grid */}
+        <div style={{ flex: 1, display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 20, minHeight: 0 }}>
+          {platforms.map((platform) => (
+            <div key={platform.name} style={{ display: "flex", flexDirection: "column", gap: 10, minHeight: 0 }}>
+              {/* Platform header */}
+              <div style={{ display: "flex", alignItems: "center", gap: 10, paddingBottom: 10, borderBottom: `1px solid ${t.fg}22`, flexShrink: 0 }}>
+                <span style={{ fontSize: 16 }}>{platform.icon}</span>
+                <span style={{ fontFamily: "'Space Mono',monospace", fontSize: 10, letterSpacing: "0.2em", textTransform: "uppercase", color: t.accent }}>
+                  {platform.name}
+                </span>
+              </div>
+
+              {/* Caption cards */}
+              <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 10, overflowY: "auto" }}>
+                {platform.captions.map((caption, j) => {
+                  const id      = `${platform.name}-${j}`;
+                  const active  = copied === id;
+                  return (
+                    <div
+                      key={j}
+                      style={{
+                        border: `1px solid ${t.fg}18`,
+                        background: t.fg + "06",
+                        padding: "14px 16px",
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: 8,
+                      }}
+                    >
+                      <p style={{
+                        fontFamily: bodyFont, fontSize: 12, color: t.fg + "dd",
+                        margin: 0, lineHeight: 1.65, whiteSpace: "pre-line",
+                      }}>
+                        {caption.text}
+                      </p>
+                      <p style={{
+                        fontFamily: "'Space Mono',monospace", fontSize: 9,
+                        color: t.accent + "99", margin: 0, lineHeight: 1.6,
+                      }}>
+                        {caption.tags}
+                      </p>
+                      <button
+                        onClick={() => handleCopy(caption.text, caption.tags, id)}
+                        style={{
+                          alignSelf: "flex-end",
+                          fontFamily: "'Space Mono',monospace",
+                          fontSize: 9,
+                          letterSpacing: "0.15em",
+                          textTransform: "uppercase",
+                          background: active ? t.accent : "transparent",
+                          color: active ? (dark(t.accent) ? "#fff" : "#000") : t.dim,
+                          border: `1px solid ${active ? t.accent : t.fg + "33"}`,
+                          padding: "5px 12px",
+                          cursor: "pointer",
+                          transition: "all .15s",
+                        }}
+                        onMouseEnter={(e) => { if (!active) e.currentTarget.style.borderColor = t.accent; }}
+                        onMouseLeave={(e) => { if (!active) e.currentTarget.style.borderColor = t.fg + "33"; }}
+                      >
+                        {active ? "✓ copied" : "copy"}
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+// ─── Panel 11: Motion + Retail ────────────────────────────────────────────────
 
 function MotionRetail({ brand, palette, onPrint }: { brand: BrandResult["brand_assets"]; palette: Palette; onPrint: () => void }) {
   const t = getPanelTheme(9, palette);
@@ -823,14 +1011,14 @@ function MotionRetail({ brand, palette, onPrint }: { brand: BrandResult["brand_a
 
   return (
     <section className="panel" style={{ background: t.bg }}>
-      <Chrome n={9} name={brand.brand_name} t={t} />
+      <Chrome n={10} name={brand.brand_name} t={t} />
 
       <div style={{ height: "100%", display: "grid", gridTemplateColumns: "1fr 1fr", padding: "100px 6% 60px", gap: 48 }}>
         {/* Motion cues */}
         <div style={{ display: "flex", flexDirection: "column", gap: 28 }}>
           <div>
             <div style={{ fontFamily: "'Space Mono',monospace", fontSize: "10px", letterSpacing: "0.25em", textTransform: "uppercase", color: t.accent, marginBottom: 12 }}>
-              10 — Motion + Retail
+              11 — Motion + Retail
             </div>
             <h2 style={{ fontFamily: displayFont, fontSize: "clamp(24px,3.5vw,44px)", fontWeight: 700, color: t.fg, margin: 0 }}>
               Motion System
@@ -905,7 +1093,7 @@ function MotionRetail({ brand, palette, onPrint }: { brand: BrandResult["brand_a
             onMouseEnter={(e) => (e.currentTarget.style.opacity = "0.8")}
             onMouseLeave={(e) => (e.currentTarget.style.opacity = "1")}
           >
-            Export PDF — All 10 Pages
+            Export PDF — All 11 Pages
           </button>
         </div>
       </div>
@@ -948,7 +1136,7 @@ export function BrandKitSlides({ result, className }: Props) {
       const scrollTop = el.scrollTop;
       const height = el.clientHeight;
       const idx = Math.round(scrollTop / height);
-      setCurrentIdx(Math.max(0, Math.min(9, idx)));
+      setCurrentIdx(Math.max(0, Math.min(10, idx)));
     };
     el.addEventListener("scroll", onScroll, { passive: true });
     return () => el.removeEventListener("scroll", onScroll);
@@ -972,6 +1160,7 @@ export function BrandKitSlides({ result, className }: Props) {
     <ProductMockups key="mockups" brand={brand} palette={palette} />,
     <Editorial key="editorial" brand={brand} palette={palette} />,
     <CrossPlatform key="crossplatform" brand={brand} palette={palette} />,
+    <SocialCaptions key="social" brand={brand} persona={persona} palette={palette} />,
     <MotionRetail key="motion" brand={brand} palette={palette} onPrint={handlePrint} />,
   ];
 
