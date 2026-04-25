@@ -56,7 +56,7 @@ async def assemble(persona: Persona, product_idea: str, job_id: str) -> BrandAss
         primary_hex = _primary_hex(palette)
         logo, mockups = await asyncio.gather(
             generate_logo_set(brand_name, product_idea, persona, primary_hex, job_id),
-            generate_mockups(brand_name, persona, job_id, brand_color_hex=primary_hex),
+            generate_mockups(brand_name, persona, job_id, brand_color_hex=primary_hex, product_idea=product_idea),
         )
 
         tagline = ""
