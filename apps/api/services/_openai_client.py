@@ -3,62 +3,59 @@ from __future__ import annotations
 import json
 import logging
 from functools import lru_cache
-from typing import Any, Awaitable, Callable, Optional, TypeVar
+from typing import Any, Callable, Optional, TypeVar
 
-from openai import AsyncOpenAI
+from anthropic import AsyncAnthropic
 
-from apps.api.config import get_settings
+from ..config import get_settings
 
 logger = logging.getLogger(__name__)
 
 T = TypeVar("T")
 
+MODEL = "claude-haiku-4-5-20251001"
+
 
 @lru_cache(maxsize=1)
-def get_openai_client() -> Optional[AsyncOpenAI]:
-    """Returns a cached AsyncOpenAI client, or None when no key is set.
-
-    Services check for None and fall back to deterministic fixtures so the
-    scaffold boots without credentials.
-    """
-    key = get_settings().openai_api_key
+def get_claude_client() -> Optional[AsyncAnthropic]:
+    """Returns a cached AsyncAnthropic client, or None when no key is set."""
+    key = get_settings().anthropic_api_key
     if not key:
         return None
-    return AsyncOpenAI(api_key=key)
+    return AsyncAnthropic(api_key=key)
+
+
+# Keep old name as alias so any code that imports get_openai_client still works
+get_openai_client = get_claude_client
 
 
 async def call_json_mode(
     *,
-    client: AsyncOpenAI,
+    client: AsyncAnthropic,
     system: str,
     user: str,
     validator: Callable[[dict[str, Any]], T],
-    model: str = "gpt-4o",
+    model: str = MODEL,
     temperature: float = 0.7,
     retries: int = 1,
     repair_hint: str = "",
 ) -> T:
-    """Call GPT in JSON mode, parse, validate, retry once on failure.
-
-    Validator must raise ValueError with a short, model-readable message on
-    bad input. That message + repair_hint is appended to the user prompt
-    on retry.
-    """
+    """Call Claude, parse JSON from the response, validate, retry once on failure."""
     last_err: Optional[Exception] = None
     user_prompt = user
 
     for attempt in range(retries + 1):
         try:
-            resp = await client.chat.completions.create(
+            resp = await client.messages.create(
                 model=model,
+                max_tokens=2048,
                 temperature=temperature,
-                response_format={"type": "json_object"},
-                messages=[
-                    {"role": "system", "content": system},
-                    {"role": "user", "content": user_prompt},
-                ],
+                system=system + "\n\nRespond with valid JSON only. No preamble, no markdown fences.",
+                messages=[{"role": "user", "content": user_prompt}],
             )
-            content = resp.choices[0].message.content or "{}"
+            content = resp.content[0].text if resp.content else "{}"
+            # Strip accidental markdown fences
+            content = content.strip().lstrip("```json").lstrip("```").rstrip("```").strip()
             parsed = json.loads(content)
             return validator(parsed)
         except (ValueError, json.JSONDecodeError) as err:
@@ -66,7 +63,7 @@ async def call_json_mode(
             logger.warning("call_json_mode attempt %d failed: %s", attempt, err)
             user_prompt = (
                 f"{user}\n\nYour previous response was rejected: {err}. "
-                f"{repair_hint}"
+                f"{repair_hint} Return valid JSON only."
             )
 
     assert last_err is not None

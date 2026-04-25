@@ -83,8 +83,18 @@ async def scrape(handle: str, platform: str = "instagram") -> RawAudience:
     except ScraperError:
         raise
     except Exception as exc:
-        logger.warning("%s scrape failed (%s) — using fixture fallback", platform, exc)
-        return _load_fixture(platform)
+        logger.warning("%s scrape failed (%s) — using minimal fallback for @%s", platform, exc, handle)
+        # Return a minimal audience so persona synthesis uses the product idea,
+        # not a random fixture persona from a different person.
+        return RawAudience(
+            bio=f"@{handle} on {platform}",
+            follower_count=0,
+            posts=[],
+            top_hashtags=[],
+            top_mentioned_accounts=[],
+            followers_sample=[],
+            following_sample=[],
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -340,7 +350,7 @@ def _build_audience(data: dict, platform: str) -> RawAudience:
         posts = _parse_instagram_posts(raw_posts)
 
     if not posts and not bio:
-        raise ScraperError("Profile appears to be private or empty.")
+        logger.warning("Profile @%s appears empty or private — persona will be product-idea driven", "unknown")
 
     all_hashtags = [ht for p in posts for ht in p.hashtags]
     all_mentions = [m for p in posts for m in _extract_mentions(p.caption)]

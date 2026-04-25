@@ -2,21 +2,23 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 from pathlib import Path
 from typing import Any
 
-import numpy as np
-from openai import AsyncOpenAI
+from anthropic import AsyncAnthropic
 
 from ..config import get_settings
 from ..models.schemas import AgencyMatch, Persona
+
+MODEL = "claude-haiku-4-5-20251001"
 
 logger = logging.getLogger(__name__)
 
 FIXTURES_DIR = Path(__file__).parent.parent / "fixtures"
 
-# Module-level cache: agency_id -> (agency_dict, embedding_vector)
-_agency_cache: dict[str, tuple[dict, np.ndarray]] = {}
+# Module-level cache: agency_id -> agency_dict
+_agency_cache: dict[str, dict] = {}
 
 
 def _load_agencies() -> list[dict]:
@@ -25,55 +27,76 @@ def _load_agencies() -> list[dict]:
         return json.load(f)
 
 
-def _agency_text(agency: dict) -> str:
+def _agency_terms(agency: dict) -> set[str]:
+    """All lowercase words from tags + blurb."""
     tags = agency.get("specialty_tags", []) + agency.get("aesthetic_tags", [])
-    return f"{', '.join(tags)}. {agency['blurb']}"
+    words = set()
+    for t in tags:
+        words.update(re.findall(r"[a-z]+", t.lower()))
+    for w in re.findall(r"[a-z]+", agency.get("blurb", "").lower()):
+        words.add(w)
+    return words
 
 
-def _persona_text(persona: Persona) -> str:
+def _persona_terms(persona: Persona) -> set[str]:
+    """All lowercase words from persona signals."""
     terms = (
         persona.aesthetic_keywords
         + persona.interests
         + persona.purchase_signals
+        + persona.psychographics
     )
-    return ", ".join(terms)
+    words = set()
+    for t in terms:
+        words.update(re.findall(r"[a-z]+", t.lower()))
+    return words
 
 
-def _cosine(a: np.ndarray, b: np.ndarray) -> float:
-    denom = np.linalg.norm(a) * np.linalg.norm(b)
-    if denom == 0:
+def _jaccard(a: set[str], b: set[str]) -> float:
+    if not a or not b:
         return 0.0
-    return float(np.dot(a, b) / denom)
+    return len(a & b) / len(a | b)
 
 
-def _rescale(cosine: float) -> float:
-    """Map cosine similarity [0.3, 0.6] -> confidence score [60, 99]."""
-    score = 60.0 + (cosine - 0.3) / 0.3 * 39.0
+def _tag_overlap_score(agency: dict, persona_terms: set[str]) -> float:
+    """
+    Weighted score:
+    - 60% Jaccard over all agency terms vs persona terms
+    - 40% direct tag hit rate (how many aesthetic/specialty tags appear verbatim in persona)
+    """
+    agency_terms = _agency_terms(agency)
+    jaccard = _jaccard(agency_terms, persona_terms)
+
+    direct_tags = agency.get("specialty_tags", []) + agency.get("aesthetic_tags", [])
+    if direct_tags:
+        hits = sum(
+            1 for t in direct_tags
+            if any(w in persona_terms for w in re.findall(r"[a-z]+", t.lower()))
+        )
+        tag_rate = hits / len(direct_tags)
+    else:
+        tag_rate = 0.0
+
+    return 0.6 * jaccard + 0.4 * tag_rate
+
+
+def _rescale(raw: float) -> float:
+    """Map raw overlap score [0, 0.5] -> confidence [60, 99]."""
+    score = 60.0 + (raw / 0.5) * 39.0
     return round(max(60.0, min(99.0, score)), 1)
 
 
-async def _get_embedding(client: AsyncOpenAI, text: str) -> np.ndarray:
-    resp = await client.embeddings.create(
-        model="text-embedding-3-small",
-        input=text,
-    )
-    return np.array(resp.data[0].embedding, dtype=np.float32)
-
-
-async def _ensure_agency_embeddings(client: AsyncOpenAI) -> None:
+def _ensure_agency_cache() -> None:
     if _agency_cache:
         return
     agencies = _load_agencies()
-    logger.info("Computing embeddings for %d agencies", len(agencies))
+    logger.info("Loaded %d agencies for keyword matching", len(agencies))
     for agency in agencies:
-        text = _agency_text(agency)
-        vector = await _get_embedding(client, text)
-        _agency_cache[agency["id"]] = (agency, vector)
-    logger.info("Agency embeddings ready")
+        _agency_cache[agency["id"]] = agency
 
 
 async def _why_line(
-    client: AsyncOpenAI,
+    client: AsyncAnthropic,
     agency: dict[str, Any],
     persona: Persona,
     overlap_tags: set[str],
@@ -85,91 +108,36 @@ async def _why_line(
         f"CUSTOMER: {persona.summary}\n"
         f"AESTHETIC OVERLAP: {overlap_str}"
     )
-    resp = await client.chat.completions.create(
-        model="gpt-4o",
-        messages=[{"role": "user", "content": prompt}],
-        temperature=0.4,
+    resp = await client.messages.create(
+        model=MODEL,
         max_tokens=60,
+        temperature=0.4,
+        messages=[{"role": "user", "content": prompt}],
     )
-    return resp.choices[0].message.content.strip().rstrip(".")
-
-
-def _fixture_matches(persona: Persona) -> list[AgencyMatch]:
-    """Heuristic fallback when OpenAI embeddings/chat are unavailable.
-
-    Scores agencies by aesthetic_tag overlap with the persona, returns top 3.
-    Mirrors real match() shape so the rest of the pipeline can't tell the
-    difference.
-    """
-    persona_aes = set(persona.aesthetic_keywords)
-    scored: list[tuple[int, dict]] = []
-    for agency in _load_agencies():
-        overlap = persona_aes & set(agency.get("aesthetic_tags", []))
-        scored.append((len(overlap), agency))
-
-    scored.sort(key=lambda x: x[0], reverse=True)
-    matches: list[AgencyMatch] = []
-    for rank, (overlap_count, agency) in enumerate(scored[:3]):
-        score = max(60.0, 95.0 - rank * 7.0)  # 95 / 88 / 81
-        overlap_tags = persona_aes & set(agency.get("aesthetic_tags", []))
-        why = (
-            f"Overlap on {', '.join(sorted(overlap_tags))}."
-            if overlap_tags
-            else f"Specialties: {', '.join(agency.get('specialty_tags', [])[:2])}."
-        )
-        matches.append(
-            AgencyMatch(
-                agency_id=agency["id"],
-                name=agency["name"],
-                blurb=agency["blurb"],
-                specialty_tags=agency.get("specialty_tags", []),
-                aesthetic_tags=agency.get("aesthetic_tags", []),
-                notable_clients=agency.get("notable_clients", []),
-                min_budget=agency.get("min_budget", ""),
-                website=agency.get("website", ""),
-                match_score=score,
-                why=why,
-            )
-        )
-    return matches
+    return resp.content[0].text.strip().rstrip(".")
 
 
 async def match(persona: Persona) -> list[AgencyMatch]:
     settings = get_settings()
-    if not settings.openai_api_key:
-        logger.warning("No OpenAI key — using heuristic fixture match")
-        return _fixture_matches(persona)
+    client = AsyncAnthropic(api_key=settings.anthropic_api_key or None)
 
-    client = AsyncOpenAI(api_key=settings.openai_api_key)
+    _ensure_agency_cache()
 
-    try:
-        await _ensure_agency_embeddings(client)
-        persona_vec = await _get_embedding(client, _persona_text(persona))
-    except Exception as exc:
-        logger.warning("Embedding lookup failed (%s) — using heuristic fallback", exc)
-        return _fixture_matches(persona)
+    persona_terms = _persona_terms(persona)
 
-    # Score all agencies
-    scored: list[tuple[float, dict, np.ndarray]] = []
-    for agency, vec in _agency_cache.values():
-        sim = _cosine(persona_vec, vec)
-        scored.append((sim, agency, vec))
+    # Score all agencies with keyword overlap (no embeddings needed)
+    scored: list[tuple[float, dict]] = []
+    for agency in _agency_cache.values():
+        score = _tag_overlap_score(agency, persona_terms)
+        scored.append((score, agency))
 
     scored.sort(key=lambda x: x[0], reverse=True)
     top3 = scored[:3]
 
     matches: list[AgencyMatch] = []
-    for cosine_score, agency, _ in top3:
+    for raw_score, agency in top3:
         overlap = set(persona.aesthetic_keywords) & set(agency.get("aesthetic_tags", []))
-        try:
-            why = await _why_line(client, agency, persona, overlap)
-        except Exception as exc:
-            logger.warning("why_line failed (%s) — using heuristic", exc)
-            why = (
-                f"Overlap on {', '.join(sorted(overlap))}."
-                if overlap
-                else f"Specialties: {', '.join(agency.get('specialty_tags', [])[:2])}."
-            )
+        why = await _why_line(client, agency, persona, overlap)
 
         matches.append(
             AgencyMatch(
@@ -181,7 +149,7 @@ async def match(persona: Persona) -> list[AgencyMatch]:
                 notable_clients=agency.get("notable_clients", []),
                 min_budget=agency.get("min_budget", ""),
                 website=agency.get("website", ""),
-                match_score=_rescale(cosine_score),
+                match_score=_rescale(raw_score),
                 why=why,
             )
         )

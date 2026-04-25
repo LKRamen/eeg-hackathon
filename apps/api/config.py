@@ -19,6 +19,7 @@ class Settings(BaseSettings):
     """
 
     openai_api_key: str = Field(default="", alias="OPENAI_API_KEY")
+    anthropic_api_key: str = Field(default="", alias="ANTHROPIC_API_KEY")
     hf_token: str = Field(default="", alias="HF_TOKEN")
     supabase_url: str = Field(default="", alias="SUPABASE_URL")
     supabase_service_key: str = Field(default="", alias="SUPABASE_SERVICE_KEY")
@@ -49,3 +50,8 @@ class Settings(BaseSettings):
 @lru_cache(maxsize=1)
 def get_settings() -> Settings:
     return Settings()
+
+
+def reset_settings_cache() -> None:
+    """Call this to force a fresh read of .env (e.g. in tests or after key rotation)."""
+    get_settings.cache_clear()

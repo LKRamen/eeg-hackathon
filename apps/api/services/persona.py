@@ -3,12 +3,14 @@ from __future__ import annotations
 import json
 import logging
 
-from openai import AsyncOpenAI
+from anthropic import AsyncAnthropic
 
 from ..config import get_settings
 from ..models.schemas import NetworkInsights, Persona, RawAudience
 
 logger = logging.getLogger(__name__)
+
+MODEL = "claude-haiku-4-5-20251001"
 
 _BANNED_PHRASES = [
     "tech-savvy",
@@ -37,7 +39,9 @@ BANNED PHRASES — never write these:
 - Any sentence starting with "They are..."
 
 Instead: name a specific subreddit, magazine, brand, ritual, or third-place. \
-Force yourself to be embarrassingly specific.\
+Force yourself to be embarrassingly specific.
+
+Respond with valid JSON only. No preamble, no markdown fences.\
 """
 
 _USER_PROMPT_TEMPLATE = """\
@@ -91,22 +95,21 @@ def _contains_banned(text: str) -> bool:
 
 async def synthesize(product_idea: str, audience: RawAudience) -> Persona:
     settings = get_settings()
-    client = AsyncOpenAI(api_key=settings.openai_api_key)
+    client = AsyncAnthropic(api_key=settings.anthropic_api_key or None)
 
     user_prompt = _build_user_prompt(product_idea, audience)
 
     async def _call(extra: str = "") -> dict:
-        messages = [
-            {"role": "system", "content": _SYSTEM_PROMPT},
-            {"role": "user", "content": user_prompt + extra},
-        ]
-        resp = await client.chat.completions.create(
-            model="gpt-4o",
-            messages=messages,
-            response_format={"type": "json_object"},
+        resp = await client.messages.create(
+            model=MODEL,
+            max_tokens=2048,
             temperature=0.8,
+            system=_SYSTEM_PROMPT,
+            messages=[{"role": "user", "content": user_prompt + extra}],
         )
-        return json.loads(resp.choices[0].message.content)
+        text = resp.content[0].text.strip()
+        text = text.lstrip("```json").lstrip("```").rstrip("```").strip()
+        return json.loads(text)
 
     try:
         data = await _call()
@@ -115,11 +118,10 @@ async def synthesize(product_idea: str, audience: RawAudience) -> Persona:
         logger.warning("First persona attempt failed (%s), retrying", exc)
         data = await _call(
             "\n\nYour previous response was not valid JSON matching the schema. "
-            "Return valid JSON only, no preamble."
+            "Return valid JSON only, no preamble, no markdown fences."
         )
         persona = Persona(**data)
 
-    # Warn if banned phrases sneak through — helpful during iteration
     full_text = persona.model_dump_json()
     if _contains_banned(full_text):
         logger.warning("Persona contains banned phrases — consider iterating the prompt")
@@ -131,7 +133,9 @@ _BRAND_NAME_SYSTEM = """\
 You are a naming consultant with taste. You create brand names that feel discovered, \
 not invented. You avoid portmanteaus, -ly suffixes, dropped vowels, and anything \
 that sounds like a Y Combinator company. The best names are short, slightly strange, \
-and immediately visual.\
+and immediately visual.
+
+Respond with valid JSON only. No preamble, no markdown fences.\
 """
 
 _BRAND_NAME_USER_TEMPLATE = """\
@@ -156,7 +160,7 @@ async def suggest_brand_name(
     product_idea: str, persona: Persona
 ) -> tuple[list[str], str]:
     settings = get_settings()
-    client = AsyncOpenAI(api_key=settings.openai_api_key)
+    client = AsyncAnthropic(api_key=settings.anthropic_api_key or None)
 
     prompt = _BRAND_NAME_USER_TEMPLATE.format(
         product_idea=product_idea,
@@ -164,17 +168,16 @@ async def suggest_brand_name(
         aesthetic=", ".join(persona.aesthetic_keywords),
     )
 
-    resp = await client.chat.completions.create(
-        model="gpt-4o",
-        messages=[
-            {"role": "system", "content": _BRAND_NAME_SYSTEM},
-            {"role": "user", "content": prompt},
-        ],
-        response_format={"type": "json_object"},
+    resp = await client.messages.create(
+        model=MODEL,
+        max_tokens=512,
         temperature=0.9,
+        system=_BRAND_NAME_SYSTEM,
+        messages=[{"role": "user", "content": prompt}],
     )
 
-    data = json.loads(resp.choices[0].message.content)
+    text = resp.content[0].text.strip().lstrip("```json").lstrip("```").rstrip("```").strip()
+    data = json.loads(text)
     options: list[str] = data["options"]
     recommended: str = data["recommended"]
     logger.info("Brand names: %s (recommended: %s)", options, recommended)
@@ -186,7 +189,9 @@ You are an audience analyst. Given a sample of bios from someone's Twitter/X \
 followers and following, you identify patterns, archetypes, and actionable \
 targeting insights. You are specific — you name industries, job titles, \
 communities, and cultural references. You never say "diverse audience" or \
-"wide range of interests".\
+"wide range of interests".
+
+Respond with valid JSON only. No preamble, no markdown fences.\
 """
 
 _NETWORK_USER_TEMPLATE = """\
@@ -215,7 +220,7 @@ Return JSON with this exact schema:
 async def analyze_network(handle: str, audience: RawAudience) -> NetworkInsights:
     """Analyze followers/following to produce audience targeting insights."""
     settings = get_settings()
-    client = AsyncOpenAI(api_key=settings.openai_api_key)
+    client = AsyncAnthropic(api_key=settings.anthropic_api_key or None)
 
     follower_bios = "\n".join(
         f"- @{f.username}: {f.bio[:120]}" if f.bio else f"- @{f.username}"
@@ -237,15 +242,14 @@ async def analyze_network(handle: str, audience: RawAudience) -> NetworkInsights
         following_bios=following_bios,
     )
 
-    resp = await client.chat.completions.create(
-        model="gpt-4o",
-        messages=[
-            {"role": "system", "content": _NETWORK_SYSTEM},
-            {"role": "user", "content": prompt},
-        ],
-        response_format={"type": "json_object"},
+    resp = await client.messages.create(
+        model=MODEL,
+        max_tokens=1024,
         temperature=0.7,
+        system=_NETWORK_SYSTEM,
+        messages=[{"role": "user", "content": prompt}],
     )
 
-    data = json.loads(resp.choices[0].message.content)
+    text = resp.content[0].text.strip().lstrip("```json").lstrip("```").rstrip("```").strip()
+    data = json.loads(text)
     return NetworkInsights(**data)
