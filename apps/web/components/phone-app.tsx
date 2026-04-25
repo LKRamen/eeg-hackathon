@@ -14,6 +14,10 @@ interface AgencyMatch {
 }
 interface FontSpec { family: string; google_url: string; }
 interface Mockup   { label: string; url: string; }
+interface LogoVariants {
+  primary: string; mono_dark: string; mono_light: string;
+  on_brand: string; avatar: string;
+}
 interface BrandResult {
   persona: {
     name: string; age_range: string; summary: string;
@@ -22,6 +26,7 @@ interface BrandResult {
   };
   brand_assets: {
     brand_name: string; tagline: string; logo_url: string;
+    logo: LogoVariants;
     palette: Color[];
     typography: { display: FontSpec; body: FontSpec; };
     voice: { tone: string; do: string[]; dont: string[]; examples: string[]; };
@@ -328,10 +333,40 @@ function ResultsScreen({ result, onReset }: { result: BrandResult; onReset: () =
       {/* ── scrollable deck ── */}
       <div style={{ flex: 1, overflowY: 'auto', scrollbarWidth: 'none' as const }}>
 
-        {/* 01 — color palette */}
-        <div style={{ padding: '18px 22px 0' }}>
+        {/* 01 — logo */}
+        {brand.logo && (
+          <div style={{ padding: '18px 22px 0' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+              <SectionLabel>01 · logo</SectionLabel>
+              <DownloadChip label=".png"/>
+            </div>
+            {/* primary — large hero */}
+            <div style={{ background: '#ffffff', borderRadius: 16, padding: '28px 20px', marginBottom: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid rgba(255,255,255,0.1)' }}>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={brand.logo.primary} alt="primary logo" style={{ width: '100%', maxWidth: 180, height: 180, objectFit: 'contain', display: 'block' }}/>
+            </div>
+            {/* variant row */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 6, marginBottom: 18 }}>
+              {[
+                { url: brand.logo.mono_dark,  label: 'black',   bg: '#ffffff' },
+                { url: brand.logo.mono_light, label: 'white',   bg: '#0a0a0a' },
+                { url: brand.logo.on_brand,   label: 'on-brand', bg: accentColor + '22' },
+                { url: brand.logo.avatar,     label: 'avatar',   bg: accentColor + '22', round: true },
+              ].map(({ url, label, bg, round }) => (
+                <div key={label} style={{ background: bg, borderRadius: round ? '50%' : 10, overflow: 'hidden', border: '1px solid rgba(255,255,255,0.08)', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={url} alt={label} style={{ width: '100%', aspectRatio: '1', objectFit: 'contain', display: 'block', padding: round ? 8 : 6 }}/>
+                  {!round && <p style={{ fontSize: 7, color: 'rgba(240,238,244,0.35)', padding: '3px 0 5px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>{label}</p>}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* 02 — color palette */}
+        <div style={{ padding: brand.logo ? '0 22px 0' : '18px 22px 0' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-            <SectionLabel>01 · color palette</SectionLabel>
+            <SectionLabel>02 · color palette</SectionLabel>
             <DownloadChip label=".ase"/>
           </div>
           <div style={{ display: 'flex', gap: 5, marginBottom: 18 }}>
@@ -356,7 +391,7 @@ function ResultsScreen({ result, onReset }: { result: BrandResult; onReset: () =
         {/* 02 — typography */}
         {brand.typography && (
           <div style={{ padding: '0 22px', marginBottom: 18 }}>
-            <SectionLabel>02 · typography</SectionLabel>
+            <SectionLabel>03 · typography</SectionLabel>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
               {[
                 { label: 'display', spec: brand.typography.display },
@@ -374,7 +409,7 @@ function ResultsScreen({ result, onReset }: { result: BrandResult; onReset: () =
 
         {/* 03 — brand voice */}
         <div style={{ padding: '0 22px', marginBottom: 18 }}>
-          <SectionLabel>03 · brand voice</SectionLabel>
+          <SectionLabel>04 · brand voice</SectionLabel>
           <div style={{ background: 'rgba(255,255,255,0.025)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 14, padding: '12px 14px', marginBottom: 8 }}>
             <p style={{ fontSize: 11, color: 'rgba(240,238,244,0.65)', fontStyle: 'italic', marginBottom: 10, lineHeight: 1.5 }}>{brand.voice.tone}</p>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
@@ -398,7 +433,7 @@ function ResultsScreen({ result, onReset }: { result: BrandResult; onReset: () =
         {brand.mockups && brand.mockups.length > 0 && (
           <div style={{ padding: '0 22px', marginBottom: 18 }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-              <SectionLabel>04 · merchandise</SectionLabel>
+              <SectionLabel>05 · merchandise</SectionLabel>
               <DownloadChip label=".png"/>
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: `repeat(${Math.min(brand.mockups.length, 2)}, 1fr)`, gap: 8 }}>
@@ -415,7 +450,7 @@ function ResultsScreen({ result, onReset }: { result: BrandResult; onReset: () =
 
         {/* 05 — social copy */}
         <div style={{ padding: '0 22px', marginBottom: 28 }}>
-          <SectionLabel>05 · social copy</SectionLabel>
+          <SectionLabel>06 · social copy</SectionLabel>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             {brand.voice.examples.map((ex, i) => {
               const icons     = ['𝕏', '◎', '♪'];
@@ -447,7 +482,7 @@ function ResultsScreen({ result, onReset }: { result: BrandResult; onReset: () =
         {/* 06 — canva templates */}
         {(result.canva_edit_urls || result.canva_folder_url) && (
           <div style={{ padding: '0 22px', marginBottom: 28 }}>
-            <SectionLabel>06 · canva templates</SectionLabel>
+            <SectionLabel>07 · canva templates</SectionLabel>
             <div style={{ background: 'rgba(255,255,255,0.025)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 14, padding: '14px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
                 <div style={{ width: 32, height: 32, borderRadius: 8, background: 'rgba(124,77,255,0.15)', border: '1px solid rgba(124,77,255,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>

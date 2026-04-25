@@ -45,12 +45,7 @@ async def _cf_generate(
     width: int = 1024,
     height: int = 1024,
 ) -> Image.Image:
-    """Run text-to-image via Cloudflare Workers AI (FLUX.1-schnell), return PIL Image.
-
-    CF Workers AI REST API returns a JSON envelope:
-      {"result": {"image": "<base64 PNG>"}, "success": true, ...}
-    This function handles both that format and raw-bytes responses defensively.
-    """
+    """Run text-to-image via Cloudflare Workers AI (FLUX.1-schnell), return PIL Image."""
     settings = get_settings()
     url = (
         f"https://api.cloudflare.com/client/v4/accounts/"
@@ -76,7 +71,6 @@ async def _cf_generate(
 
     content_type = resp.headers.get("content-type", "")
     if "json" in content_type or resp.content[:1] == b"{":
-        # JSON envelope: {"result": {"image": "<base64>"}, "success": true}
         data = resp.json()
         if not data.get("success", True):
             raise RuntimeError(f"CF API returned success=false: {data.get('errors')}")
@@ -86,7 +80,6 @@ async def _cf_generate(
         img_bytes = base64.b64decode(b64)
         _log.info("CF image decoded from base64, %d bytes", len(img_bytes))
     else:
-        # Raw binary response
         img_bytes = resp.content
         _log.info("CF image received as raw bytes, %d bytes", len(img_bytes))
 
@@ -132,11 +125,6 @@ _FONT_CACHE: dict[str, Path] = {}
 
 
 def get_google_font_ttf(family: str, weight: int = 700) -> Path | None:
-    """Download a Google Font TTF by family name, cache to /tmp/halo_fonts/.
-
-    Uses an old User-Agent to request the TTF format from Google Fonts CSS2 API.
-    Returns the local Path on success, or None if download fails.
-    """
     import re
     slug = re.sub(r"[^a-zA-Z0-9]", "_", family.lower())
     cache_key = f"{slug}_{weight}"
@@ -155,7 +143,6 @@ def get_google_font_ttf(family: str, weight: int = 700) -> Path | None:
             f"https://fonts.googleapis.com/css2"
             f"?family={family.replace(' ', '+')}:wght@{weight}"
         )
-        # Old IE UA causes Google Fonts to return TTF instead of woff2
         old_ua = "Mozilla/4.0 (compatible; MSIE 6.0; Windows NT 5.1)"
         css_resp = httpx.get(css_url, headers={"User-Agent": old_ua},
                              timeout=10, follow_redirects=True)
@@ -196,10 +183,9 @@ def _pick_font(
 
 
 # ---------------------------------------------------------------------------
-# Logo generation
+# Keyword reference tables
 # ---------------------------------------------------------------------------
 
-# Keyword → specific historical design reference (drives specificity over generic output)
 _KEYWORD_REFERENCES: dict[str, str] = {
     "brutalist":  "1970s European brutalist architectural wayfinding and concrete typography",
     "concrete":   "1970s Swiss brutalist signage systems",
@@ -219,7 +205,6 @@ _KEYWORD_REFERENCES: dict[str, str] = {
     "surgical":   "medical device identity design and Swiss precision instrument branding",
 }
 
-# Keyword → shape guidance (prevents swirls and generic output)
 _KEYWORD_SHAPE: dict[str, str] = {
     "brutalist":  "hard 90-degree angles, rectangular forms, no curves whatsoever",
     "concrete":   "angular slab geometry, heavy weight, no curves",
@@ -247,15 +232,32 @@ _LOGO_INLINE_NEGATIVE = (
 )
 
 
-def _logo_prompt(brand_name: str, product_idea: str, persona: Persona) -> str:
-    """Build a logo prompt that produces premium geometric icon marks."""
-    kw = persona.aesthetic_keywords
+# ---------------------------------------------------------------------------
+# Persona brief helper
+# ---------------------------------------------------------------------------
 
-    reference = next(
-        (ref for k, ref in _KEYWORD_REFERENCES.items()
-         if any(k in w.lower() for w in kw)),
-        "1960s Swiss International Style and Saul Bass film poster identity design",
-    )
+def _persona_brief(persona: Persona, product_idea: str) -> dict:
+    """Distill persona data into brand brief descriptors for image prompts."""
+    kw = persona.aesthetic_keywords or ["minimal", "contemporary"]
+    voice = persona.voice_traits or []
+    interests = persona.interests or []
+    purchase = persona.purchase_signals or []
+    psycho = persona.psychographics or []
+
+    mood = [w.split()[0] for w in kw[:3]] if kw else ["refined", "contemporary", "bold"]
+    voice_words = [v.split("—")[0].strip().split()[0] for v in voice[:2]] if voice else ["considered", "precise"]
+
+    def _short(s: str, n: int = 4) -> str:
+        return " ".join(s.split()[:n])
+
+    interest_ctx = [_short(i) for i in interests[:2]] if interests else ["premium design culture", "contemporary craft"]
+
+    import re as _re
+    raw_obs = purchase[0] if purchase else "premium limited-edition drops"
+    raw_obs = _re.sub(r"^(buys|collects|invests in|follows|wears|shops|orders)\s+", "", raw_obs, flags=_re.I)
+    obsession = _short(raw_obs, 5)
+
+    mindset = _short(psycho[0], 6) if psycho else "design-literate, culturally aware"
 
     shape_bias = next(
         (shape for k, shape in _KEYWORD_SHAPE.items()
@@ -263,17 +265,76 @@ def _logo_prompt(brand_name: str, product_idea: str, persona: Persona) -> str:
         "single bold geometric shape, strong silhouette",
     )
 
-    aesthetics = ", ".join(kw)
+    reference = next(
+        (ref for k, ref in _KEYWORD_REFERENCES.items()
+         if any(k in w.lower() for w in kw)),
+        "1960s Swiss International Style and Saul Bass film poster identity design",
+    )
+
+    scene_map = {
+        "brutalist": "raw concrete architecture at dusk, dramatic shadow geometry",
+        "concrete":  "raw concrete brutalist space, cinematic low light",
+        "organic":   "sun-drenched natural linen, dried botanicals, morning haze",
+        "natural":   "forest-filtered light, tactile organic textures",
+        "y2k":       "chrome surfaces, holographic plastic, iridescent reflections",
+        "chrome":    "glossy reflective surfaces, automotive chrome, dramatic studio light",
+        "neon":      "rain-soaked neon-lit Tokyo alleyway at midnight, vivid color bleed",
+        "pastel":    "soft diffuse morning light through sheer curtains, gentle color palette",
+        "editorial": "stark white studio with single dramatic overhead light, fashion week energy",
+        "minimal":   "negative space composition, single object, architectural calm",
+    }
+    scene = next(
+        (v for k, v in scene_map.items() if any(k in w.lower() for w in kw)),
+        "atmospheric editorial scene with dramatic art-directed lighting",
+    )
+
+    return {
+        "mood": mood,
+        "voice_words": voice_words,
+        "interest_ctx": interest_ctx,
+        "obsession": obsession,
+        "mindset": mindset,
+        "shape_bias": shape_bias,
+        "reference": reference,
+        "scene": scene,
+        "aesthetics_full": ", ".join(kw),
+        "product_idea": product_idea,
+    }
+
+
+# ---------------------------------------------------------------------------
+# Logo generation
+# ---------------------------------------------------------------------------
+
+def _logo_prompt(brand_name: str, product_idea: str, persona: Persona) -> str:
+    """Build a rich brand-brief-style logo prompt derived entirely from scraped persona data."""
+    b = _persona_brief(persona, product_idea)
+    mood_str  = ", ".join(b["mood"])
+    voice_str = " and ".join(b["voice_words"])
+    ctx_str   = " and ".join(b["interest_ctx"])
 
     return (
         f"Minimal geometric icon mark, vector-clean, single color on pure white background. "
         f"Brand: '{brand_name}'. Product: {product_idea}. "
         f"No text, no letters, no letterforms. "
-        f"Bold abstract shape — {shape_bias}. "
-        f"Premium creative brand aesthetic: {aesthetics}. "
+        f"Bold abstract shape — {b['shape_bias']}. "
+        f"Premium creative brand aesthetic: {b['aesthetics_full']}. "
         f"Centered composition, maximum negative space, scalable to 16x16px. "
-        f"Inspired by {reference}. "
+        f"Inspired by {b['reference']}. "
         f"Designed for a brand identity system — not a product illustration. "
+        f"Create a brand logo mark for '{brand_name}', a {product_idea} brand. "
+        f"The brand should feel {mood_str}, {voice_str}, "
+        f"blending the energy of {ctx_str} "
+        f"with the sophistication of a premium creative brand. "
+        f"Use a bold experimental visual identity — {b['shape_bias']}. "
+        f"The overall mood: inventive, graphic, high-concept, "
+        f"with a balance of {b['obsession']} culture and contemporary design. "
+        f"Make it feel like a confident brand mark with strong graphic cohesion "
+        f"and a premium creative studio aesthetic. "
+        f"Inspired by: {b['reference']}. "
+        f"Visual world: {b['aesthetics_full']}. "
+        f"Single symbol on pure white background. Flat 2D vector. "
+        f"Scalable to 16x16px. Centered. "
         f"{_LOGO_INLINE_NEGATIVE}"
     )
 
@@ -303,16 +364,13 @@ def _make_on_brand(mono_light: Image.Image, brand_color_hex: str) -> Image.Image
 
 
 def _pillow_wordmark(brand_name: str, brand_color_hex: str, size: int = 1024) -> Image.Image:
-    """Create a clean branded wordmark when HF is unavailable."""
     bg_rgb = _hex_to_rgb(brand_color_hex)
-    # Choose text color with enough contrast
     lum = 0.299 * bg_rgb[0] + 0.587 * bg_rgb[1] + 0.114 * bg_rgb[2]
     text_rgb = (10, 10, 10) if lum > 140 else (245, 245, 240)
 
     img = Image.new("RGBA", (size, size), (*bg_rgb, 255))
     draw = ImageDraw.Draw(img)
 
-    # Try to load a bundled font, fall back to default
     font_path = _FONTS_DIR / "SpaceGrotesk-Bold.ttf"
     if not font_path.exists():
         font_path = _FONTS_DIR / "Inter-Bold.ttf"
@@ -323,7 +381,6 @@ def _pillow_wordmark(brand_name: str, brand_color_hex: str, size: int = 1024) ->
     except Exception:
         font = ImageFont.load_default()
 
-    # Center the text
     bbox = draw.textbbox((0, 0), brand_name.upper(), font=font)
     w, h = bbox[2] - bbox[0], bbox[3] - bbox[1]
     x = (size - w) // 2
@@ -340,7 +397,6 @@ async def generate_logo_set(
     brand_color_hex: str,
     job_id: str,
 ) -> LogoVariants:
-    """Generate primary logo via Cloudflare Workers AI if credentials set, else Pillow wordmark."""
     settings = get_settings()
     if settings.cf_account_id and settings.cf_api_token:
         try:
@@ -354,10 +410,10 @@ async def generate_logo_set(
         _log.info("No CF credentials — using Pillow wordmark for %s", brand_name)
         primary = _pillow_wordmark(brand_name, brand_color_hex)
 
-    mono_dark = _to_mono(primary, (0, 0, 0))
+    mono_dark  = _to_mono(primary, (0, 0, 0))
     mono_light = _to_mono(primary, (255, 255, 255))
-    on_brand = _make_on_brand(mono_light, brand_color_hex)
-    avatar = _make_avatar(mono_light, brand_color_hex)
+    on_brand   = _make_on_brand(mono_light, brand_color_hex)
+    avatar     = _make_avatar(mono_light, brand_color_hex)
 
     urls = await asyncio.gather(
         storage.upload_pil(primary,    "brand-assets", f"jobs/{job_id}/logo_primary.png"),
@@ -385,48 +441,53 @@ _MOCKUP_NEGATIVE = (
 )
 
 
-def _mockup_prompt(
-    label: _MockupLabel,
-    persona: Persona,
-    brand_color_hex: str = "#1a1a1a",
-) -> tuple[str, int, int]:
-    kw = persona.aesthetic_keywords
-    kw_str = kw[0] if kw else "minimal"
-    _, surface = _aesthetic_context(kw)
+def _mockup_prompt(label: _MockupLabel, persona: Persona, product_idea: str = "") -> tuple[str, int, int]:
+    b = _persona_brief(persona, product_idea)
+    kw = persona.aesthetic_keywords or ["minimal"]
+    mood_str  = ", ".join(b["mood"])
+    voice_str = " and ".join(b["voice_words"])
+    tee_color, surface = _aesthetic_context(kw)
+
+    # Derive hook and cap_color from aesthetic context
+    hook = surface  # e.g. "raw concrete slab", "oak wood plank"
+    cap_color = tee_color  # e.g. "charcoal grey", "natural cream"
+
+    base = (
+        f"The brand feels {mood_str}, {voice_str}, "
+        f"with a sense of product obsession, packaging exploration, and editorial photography. "
+        f"Premium creative studio aesthetic. Magazine quality, no people, no text, no logos. "
+        f"Visual world: {b['aesthetics_full']}. {b['scene']}."
+    )
 
     if label == "tee":
         return (
-            f"Oversized premium t-shirt, flat lay editorial product photography. "
-            f"Dark studio background, {kw_str} aesthetic. "
-            f"Small minimalist abstract emblem at left chest. "
-            f"Colored gel lighting in {brand_color_hex} and complementary tones. "
-            f"Surreal composition, high-end streetwear brand campaign. "
-            f"4k photorealistic, magazine quality, Dazed & Confused aesthetic. "
-            f"No people, no models."
+            f"Editorial product photograph of a {tee_color} cotton crewneck t-shirt "
+            f"with a small minimalist abstract emblem at left chest. "
+            f"Flat lay on {surface}. Natural daylight. "
+            f"{base}"
         ), 1024, 1024
 
     if label == "tote":
         return (
-            f"Minimal canvas tote bag floating product shot. "
-            f"Brand color {brand_color_hex}, gradient background from dark to {kw_str}. "
-            f"Editorial photography, premium creative studio. "
-            f"Soft dramatic shadows, slightly surreal composition. "
-            f"4k photorealistic, i-D magazine aesthetic. "
-            f"No people, no models."
+            f"Editorial product photograph of a premium canvas tote bag hanging on a {hook}. "
+            f"Small minimalist abstract emblem on front panel. "
+            f"Art-directed still life. Natural daylight. "
+            f"{base}"
         ), 1024, 1024
 
     if label == "hat":
         return (
-            f"Structured premium cap, side profile editorial product photography. "
-            f"{kw_str} aesthetic, dark studio environment. "
-            f"Small embroidered emblem on front panel. "
-            f"Dramatic directional lighting, magazine quality. 4k photorealistic."
+            f"Editorial product photo of a structured 6-panel {cap_color} cap, "
+            f"small embroidered emblem on front. "
+            f"Three-quarter angle on {surface}. Natural daylight. "
+            f"{base}"
         ), 1024, 1024
 
+    # sticker / default
     return (
-        f"Top-down product shot of premium branded merchandise on {surface}. "
-        f"{kw_str} aesthetic, editorial photography, soft natural light. "
-        f"Magazine quality, 4k photorealistic."
+        f"Top-down editorial photograph of die-cut vinyl stickers on {surface}. "
+        f"Abstract minimalist shapes, glossy finish. "
+        f"{base}"
     ), 1024, 1024
 
 
@@ -434,9 +495,9 @@ async def _generate_mockup_cf(
     label: _MockupLabel,
     persona: Persona,
     job_id: str,
-    brand_color_hex: str = "#1a1a1a",
+    product_idea: str = "",
 ) -> Mockup:
-    prompt, w, h = _mockup_prompt(label, persona, brand_color_hex)
+    prompt, w, h = _mockup_prompt(label, persona, product_idea)
     img = await _cf_generate(prompt, negative_prompt=_MOCKUP_NEGATIVE, width=w, height=h)
     url = await storage.upload_pil(img, "brand-assets", f"jobs/{job_id}/mockup_{label}.png")
     return Mockup(label=label, url=url)
@@ -444,7 +505,7 @@ async def _generate_mockup_cf(
 
 async def _generate_mockup_canva(
     label: _MockupLabel, persona: Persona, template_id: str, job_id: str,
-    brand_color_hex: str = "#1a1a1a",
+    product_idea: str = "",
 ) -> Mockup:
     try:
         data = [
@@ -456,13 +517,12 @@ async def _generate_mockup_canva(
         url = await storage.upload_url(png_url, "brand-assets", f"jobs/{job_id}/mockup_{label}.png")
         return Mockup(label=label, url=url)
     except Exception:
-        return await _generate_mockup_cf(label, persona, job_id, brand_color_hex)
+        return await _generate_mockup_cf(label, persona, job_id, product_idea)
 
 
 async def _generate_mockup_pillow(
     label: _MockupLabel, brand_name: str, brand_color_hex: str, job_id: str
 ) -> Mockup:
-    """Minimal Pillow mockup card when HF is unavailable."""
     bg_rgb = _hex_to_rgb(brand_color_hex)
     lum = 0.299 * bg_rgb[0] + 0.587 * bg_rgb[1] + 0.114 * bg_rgb[2]
     text_rgb = (10, 10, 10) if lum > 140 else (245, 245, 240)
@@ -490,6 +550,7 @@ async def generate_mockups(
     job_id: str,
     include: list[_MockupLabel] | None = None,
     brand_color_hex: str = "#1a1a1a",
+    product_idea: str = "",
 ) -> list[Mockup]:
     if include is None:
         include = ["tee", "tote"]
@@ -499,10 +560,13 @@ async def generate_mockups(
     tasks = []
     for i, label in enumerate(include):
         if template_ids and i < len(template_ids):
-            tasks.append(_generate_mockup_canva(label, persona, template_ids[i], job_id, brand_color_hex))
+            # 1st priority: Canva (falls back to CF internally on failure)
+            tasks.append(_generate_mockup_canva(label, persona, template_ids[i], job_id, product_idea))
         elif settings.cf_account_id and settings.cf_api_token:
-            tasks.append(_generate_mockup_cf(label, persona, job_id, brand_color_hex))
+            # 2nd priority: Cloudflare Workers AI
+            tasks.append(_generate_mockup_cf(label, persona, job_id, product_idea))
         else:
+            # Final fallback: Pillow wordmark card
             tasks.append(_generate_mockup_pillow(label, brand_name, brand_color_hex, job_id))
 
     return list(await asyncio.gather(*tasks))
@@ -548,29 +612,39 @@ def _compose_text_post(
     return bg
 
 
-async def _lifestyle_cf(persona: Persona, width: int, height: int, job_id: str, label: str) -> str:
-    kw = persona.aesthetic_keywords
-    kw_str = kw[0] if kw else "minimal"
-    scene_map = {
-        "brutalist": "raw concrete brutalist architecture, dramatic shadows",
-        "concrete": "raw concrete brutalist architecture, dramatic shadows",
-        "organic": "sun-drenched natural linen and dried botanicals, warm light",
-        "y2k": "chrome surfaces, holographic reflections, iridescent light",
-        "neon": "rain-soaked neon-lit alleyway at night, colored gel reflections",
-        "pastel": "soft morning light, sheer curtains, airy studio",
-        "editorial": "high-fashion editorial environment, colored lighting gels",
-        "tokyo": "Tokyo street at night, neon signs, cinematic atmosphere",
-    }
-    scene = next(
-        (v for k, v in scene_map.items() if any(k in w.lower() for w in kw)),
-        "atmospheric urban environment, colored gel lighting",
-    )
+async def _lifestyle_cf(
+    persona: Persona,
+    width: int,
+    height: int,
+    job_id: str,
+    label: str,
+    brand_name: str = "",
+    product_idea: str = "",
+    tagline: str = "",
+) -> str:
+    b = _persona_brief(persona, product_idea)
+    mood_str  = ", ".join(b["mood"])
+    voice_str = " and ".join(b["voice_words"])
+    ctx_str   = " and ".join(b["interest_ctx"])
+
+    is_story = height > width
+    framing = "vertical 9:16 story frame, full bleed" if is_story else "square 1:1 editorial frame"
+
     prompt = (
-        f"Fashion editorial photography, creative professional, {kw_str} aesthetic. "
-        f"{scene}. Slightly surreal high-concept composition. "
-        f"i-D magazine aesthetic, brand campaign quality. "
-        f"4k photorealistic, cinematic color grading, intentional negative space."
+        f"Atmospheric lifestyle campaign photograph for the brand '{brand_name}'. "
+        f"The brand should feel {mood_str}, {voice_str}, "
+        f"blending the energy of {ctx_str} "
+        f"with the sophistication of a premium creative brand. "
+        f"Bold experimental visual identity with {b['aesthetics_full']}. "
+        f"Overall mood: inventive, youthful, tactile, high-concept. "
+        f"Scene: {b['scene']}. "
+        f"Include a sense of: product obsession, visual experimentation, "
+        f"editorial photography, immersive retail, cross-platform brand application. "
+        f"Make it feel like a confident contemporary brand world — "
+        f"accessible yet art-directed, strong graphic cohesion, premium creative studio. "
+        f"{framing}. No text. No logos. No people. Magazine quality."
     )
+
     img = await _cf_generate(prompt, negative_prompt=_SOCIAL_NEGATIVE, width=width, height=height)
     return await storage.upload_pil(img, "brand-assets", f"jobs/{job_id}/social_{label}.png")
 
@@ -598,6 +672,7 @@ async def generate_social_kit(
     brand_color_hex: str,
     job_id: str,
     display_font: str | None = None,
+    product_idea: str = "",
 ) -> list[SocialAsset]:
     """5 social assets: hero + quote + lifestyle (square) + launch + closeup (story)."""
     try:
@@ -621,6 +696,7 @@ async def generate_social_kit(
     bg_rgb = _hex_to_rgb(brand_color_hex)
     is_dark = sum(bg_rgb) / 3 < 128
     text_hex = "#ffffff" if is_dark else "#000000"
+    settings = get_settings()
 
     async def _hero() -> SocialAsset:
         img = _compose_text_post((1080, 1080), brand_color_hex, logo_pil, None)
@@ -642,14 +718,14 @@ async def generate_social_kit(
                 return SocialAsset(label="ig_post_lifestyle", url=url, format="ig_square")
             except Exception:
                 pass
-        cf = get_settings()
-        if cf.cf_account_id and cf.cf_api_token:
+        if settings.cf_account_id and settings.cf_api_token:
             try:
-                url = await _lifestyle_cf(persona, 1024, 1024, job_id, "ig_post_lifestyle")
+                url = await _lifestyle_cf(persona, 1024, 1024, job_id, "ig_post_lifestyle",
+                                          brand_name=brand_name, product_idea=product_idea, tagline=tagline)
                 return SocialAsset(label="ig_post_lifestyle", url=url, format="ig_square")
             except Exception:
                 pass
-        # Pillow fallback — aesthetic keywords as text overlay
+        # Pillow fallback
         kw_text = " · ".join(persona.aesthetic_keywords[:3]) if persona.aesthetic_keywords else tagline
         img = _compose_text_post((1080, 1080), brand_color_hex, logo_pil, kw_text,
                                  text_color_hex=text_hex, font_size=60)
@@ -671,14 +747,14 @@ async def generate_social_kit(
         return SocialAsset(label="ig_story_launch", url=url, format="ig_story")
 
     async def _story_closeup() -> SocialAsset:
-        cf = get_settings()
-        if cf.cf_account_id and cf.cf_api_token:
+        if settings.cf_account_id and settings.cf_api_token:
             try:
-                url = await _lifestyle_cf(persona, 768, 1344, job_id, "ig_story_closeup")
+                url = await _lifestyle_cf(persona, 768, 1344, job_id, "ig_story_closeup",
+                                          brand_name=brand_name, product_idea=product_idea, tagline=tagline)
                 return SocialAsset(label="ig_story_closeup", url=url, format="ig_story")
             except Exception:
                 pass
-        # Pillow fallback — tall story card with tagline
+        # Pillow fallback
         img = _compose_text_post((1080, 1920), brand_color_hex, logo_pil, tagline[:40],
                                  text_color_hex=text_hex, font_size=80,
                                  font_family=display_font)

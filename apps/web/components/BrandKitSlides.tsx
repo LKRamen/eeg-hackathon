@@ -3,1414 +3,1063 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { BrandResult } from "@halo/types";
-import { Button } from "@/components/ui/button";
 
-type Props = {
-  result: BrandResult;
-  className?: string;
+// ─── Types ────────────────────────────────────────────────────────────────────
+
+type Palette = BrandResult["brand_assets"]["palette"];
+
+interface PanelTheme {
+  bg: string;
+  fg: string;
+  accent: string;
+  dim: string;
+  pop: string;
+}
+
+type GeometryStyle = "minimal" | "bold" | "organic" | "tech";
+
+// ─── Palette utilities ─────────────────────────────────────────────────────────
+
+const FB: Record<string, string> = {
+  primary: "#FFE500",
+  secondary: "#7B2FFF",
+  bg: "#0D0D0D",
+  fg: "#F5F5F0",
+  accent: "#FF4D00",
 };
 
-function pickHex(palette: BrandResult["brand_assets"]["palette"], role: string, fallback: string) {
-  return palette.find((c) => c.role === (role as any))?.hex ?? palette[0]?.hex ?? fallback;
+function pc(palette: Palette, role: string): string {
+  return palette?.find((c) => c.role === role)?.hex ?? FB[role] ?? "#888";
 }
 
-function cssVarStyle(result: BrandResult) {
-  const p = result.brand_assets.palette ?? [];
-  const display = result.brand_assets.typography?.display?.family ?? "Space Grotesk";
-  const body = result.brand_assets.typography?.body?.family ?? "Inter";
+function lum(hex: string): number {
+  const h = hex.replace("#", "");
+  const r = parseInt(h.slice(0, 2), 16);
+  const g = parseInt(h.slice(2, 4), 16);
+  const b = parseInt(h.slice(4, 6), 16);
+  return 0.299 * r + 0.587 * g + 0.114 * b;
+}
+const dark = (hex: string) => lum(hex) < 140;
+
+const BG_SEQ = ["primary","bg","secondary","fg","bg","primary","bg","fg","secondary","primary"] as const;
+
+export function getPanelTheme(i: number, palette: Palette): PanelTheme {
+  const bgRole = BG_SEQ[i] ?? "bg";
+  const bg = pc(palette, bgRole);
+  const secondary = pc(palette, "secondary");
+  const fgColor = pc(palette, "fg");
+  const accent = pc(palette, "accent");
+  const primary = pc(palette, "primary");
+  const textBase = dark(bg) ? secondary : fgColor;
   return {
-    ["--color-primary" as any]: pickHex(p, "primary", "#6b3fa0"),
-    ["--color-secondary" as any]: pickHex(p, "secondary", "#3a6ba0"),
-    ["--color-accent" as any]: pickHex(p, "accent", "#d2beff"),
-    ["--color-bg-dark" as any]: "#0a0a0a",
-    ["--color-fg" as any]: "#f0ede6",
-    ["--font-display" as any]: `'${display}', system-ui, sans-serif`,
-    ["--font-body" as any]: `'${body}', system-ui, sans-serif`,
-  } as React.CSSProperties;
-}
-
-function downloadBlob(blob: Blob, filename: string) {
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = filename;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  URL.revokeObjectURL(url);
-}
-
-function clamp(n: number, min: number, max: number) {
-  return Math.max(min, Math.min(max, n));
-}
-
-export function BrandKitSlides({ result, className }: Props) {
-  const [idx, setIdx] = useState(0);
-  const [scale, setScale] = useState<number | null>(null);
-  const containerRef = useRef<HTMLDivElement | null>(null);
-
-  const brand = result.brand_assets;
-  const persona = result.persona;
-
-  const slideCount = 10;
-
-  const exportName = useMemo(() => brand.brand_name?.trim().replace(/\s+/g, "-") || "brand-kit", [brand.brand_name]);
-
-  // Responsive scale: render at 1920×1080, scale down to fit container.
-  useEffect(() => {
-    const el = containerRef.current;
-    if (!el) return;
-
-    const update = () => {
-      const w = el.clientWidth;
-      if (!w) return;
-      // height is set by aspect-ratio 16/9 CSS; derive it from width if not yet painted
-      const h = el.clientHeight || w * (9 / 16);
-      const next = Math.min(w / 1920, h / 1080);
-      setScale(clamp(next, 0.1, 1));
-    };
-
-    update();
-    const ro = new ResizeObserver(update);
-    ro.observe(el);
-    return () => ro.disconnect();
-  }, []);
-
-  const exportPdf = async () => {
-    const res = await fetch("/api/export", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ type: "brand-guide", result }),
-    });
-    if (!res.ok) throw new Error("Export failed");
-    const blob = await res.blob();
-    downloadBlob(blob, `${exportName}-brand-guide.pdf`);
+    bg,
+    fg: textBase,
+    accent,
+    dim: textBase + "88",
+    pop: dark(bg) ? accent : primary,
   };
+}
 
-  const exportLogoPng = async () => {
-    const res = await fetch("/api/export", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ type: "logo-print", result }),
-    });
-    if (!res.ok) throw new Error("Export failed");
-    const blob = await res.blob();
-    downloadBlob(blob, `${exportName}-logo-300dpi.png`);
-  };
+export function getGeometryStyle(keywords: string[]): GeometryStyle {
+  const j = keywords.map((k) => k.toLowerCase()).join(" ");
+  if (/tech|digital|cyber|futur|glitch|pixel|code|data/.test(j)) return "tech";
+  if (/organic|natural|earth|flow|wave|curve|soft|bloom/.test(j)) return "organic";
+  if (/bold|loud|maximal|street|vivid|energy|graphic/.test(j)) return "bold";
+  return "minimal";
+}
 
-  const go = (next: number) => setIdx((v) => clamp(next, 0, slideCount - 1));
-  const next = () => setIdx((v) => clamp(v + 1, 0, slideCount - 1));
-  const prev = () => setIdx((v) => clamp(v - 1, 0, slideCount - 1));
+function fixUrl(url?: string): string {
+  if (!url) return "";
+  if (url.startsWith("http")) return url;
+  return `http://localhost:8000${url.startsWith("/") ? "" : "/"}${url}`;
+}
 
-  const primaryLogo = brand.logo?.primary ?? brand.logo_url;
-  const monoDark = brand.logo?.mono_dark ?? primaryLogo;
-  const monoLight = brand.logo?.mono_light ?? primaryLogo;
-  const onBrand = brand.logo?.on_brand ?? primaryLogo;
+// ─── Shared Chrome ────────────────────────────────────────────────────────────
 
-  const social = brand.social_kit ?? [];
-  const mockups = brand.mockups ?? [];
-
-  // DEBUG: log all image src values — remove after confirming images render
-  if (typeof window !== "undefined") {
-    console.log("[BrandKit] image srcs", {
-      primaryLogo,
-      monoDark,
-      monoLight,
-      onBrand,
-      mockup0: mockups[0]?.url,
-      mockup1: mockups[1]?.url,
-      social0: social[0]?.url,
-      social2: social[2]?.url,
-      social4: social[4]?.url,
-    });
-  }
-
-  const heroImg =
-    social[2]?.url ??
-    social[0]?.url ??
-    mockups[0]?.url ??
-    primaryLogo;
-
-  const packagingImg = mockups[0]?.url ?? heroImg;
-  const packagingDetail = mockups[1]?.url ?? onBrand;
-
-  const editorialHero = social[4]?.url ?? social[2]?.url ?? mockups[0]?.url ?? heroImg;
-  const editorialStrip = [social[2]?.url, social[4]?.url, social[3]?.url].filter(Boolean) as string[];
-
-  const s10Social = [0, 1, 2, 3].map((i) => social[i]?.url).filter(Boolean) as string[];
-
+function Chrome({ n, name, t }: { n: number; name: string; t: PanelTheme }) {
   return (
-    <div className={className} style={cssVarStyle(result)}>
-      <style jsx global>{`
-        .bk-toolbar {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          gap: 12px;
-          padding: 16px 18px;
-          border: 1px solid rgba(255, 255, 255, 0.08);
-          background: rgba(15, 14, 17, 0.55);
-          backdrop-filter: blur(18px);
-          border-radius: 14px;
-        }
-        .bk-title {
-          display: flex;
-          flex-direction: column;
-          gap: 4px;
-          min-width: 240px;
-        }
-        .bk-title .name {
-          font-family: var(--font-display);
-          font-weight: 700;
-          font-size: 14px;
-          letter-spacing: -0.2px;
-          color: rgba(240, 238, 244, 0.9);
-        }
-        .bk-title .sub {
-          font-family: var(--font-body);
-          font-size: 12px;
-          color: rgba(240, 238, 244, 0.45);
-        }
-        .bk-actions {
-          display: flex;
-          gap: 10px;
-          align-items: center;
-          flex-wrap: wrap;
-          justify-content: flex-end;
-        }
-        .bk-stage {
-          width: 100%;
-          aspect-ratio: 16 / 9;
-          background: var(--color-bg-dark);
-          border-radius: 18px;
-          border: 1px solid rgba(255, 255, 255, 0.08);
-          overflow: hidden;
-          position: relative;
-        }
-        .bk-inner {
-          width: 1920px;
-          height: 1080px;
-          transform-origin: top left;
-        }
-        .bk-nav {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          gap: 12px;
-          margin-top: 12px;
-        }
-        .bk-dots {
-          display: flex;
-          gap: 8px;
-          justify-content: center;
-          flex: 1;
-        }
-        .bk-dot {
-          width: 7px;
-          height: 7px;
-          border-radius: 99px;
-          border: 1px solid rgba(255, 255, 255, 0.18);
-          background: rgba(255, 255, 255, 0.06);
-          cursor: pointer;
-          transition: all 120ms ease;
-        }
-        .bk-dot.active {
-          width: 22px;
-          background: var(--color-accent);
-          border-color: rgba(210, 190, 255, 0.55);
-        }
-
-        /* ------------------------------------------------------------------ */
-        /* Slides: CSS ported from apps/api/templates/brand_guide.html         */
-        /* ------------------------------------------------------------------ */
-        .slide {
-          width: 1920px;
-          height: 1080px;
-          background: var(--color-bg-dark);
-          position: relative;
-          overflow: hidden;
-        }
-        .sn {
-          position: absolute;
-          top: 44px;
-          right: 60px;
-          z-index: 50;
-          font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-          font-size: 11px;
-          letter-spacing: 0.18em;
-          text-transform: uppercase;
-          color: rgba(240, 237, 230, 0.38);
-        }
-        .bm {
-          position: absolute;
-          top: 44px;
-          left: 60px;
-          z-index: 50;
-          font-family: var(--font-display);
-          font-size: 11px;
-          font-weight: 700;
-          letter-spacing: 0.18em;
-          text-transform: uppercase;
-          color: rgba(240, 237, 230, 0.38);
-        }
-        img.fill {
-          width: 100%;
-          height: 100%;
-          object-fit: cover;
-          display: block;
-        }
-        img.hold {
-          width: 100%;
-          height: 100%;
-          object-fit: contain;
-          display: block;
-        }
-
-        /* 01 */
-        .s01 {
-          display: grid;
-          grid-template-columns: 1100px 1fr;
-        }
-        .s01-l {
-          display: flex;
-          flex-direction: column;
-          justify-content: flex-end;
-          padding: 96px 80px 96px 96px;
-        }
-        .s01-eye {
-          font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-          font-size: 11px;
-          letter-spacing: 0.2em;
-          text-transform: uppercase;
-          color: rgba(240, 237, 230, 0.38);
-          margin-bottom: 20px;
-        }
-        .s01-name {
-          font-family: var(--font-display);
-          font-size: 144px;
-          font-weight: 700;
-          line-height: 0.88;
-          letter-spacing: -0.03em;
-          color: var(--color-fg);
-          word-break: break-word;
-        }
-        .s01-tag {
-          font-family: var(--font-body);
-          font-size: 22px;
-          line-height: 1.4;
-          color: rgba(240, 237, 230, 0.38);
-          margin-top: 28px;
-          max-width: 640px;
-        }
-        .s01-foot {
-          display: flex;
-          justify-content: space-between;
-          margin-top: 72px;
-          font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-          font-size: 11px;
-          letter-spacing: 0.14em;
-          text-transform: uppercase;
-          color: rgba(240, 237, 230, 0.38);
-        }
-        .s01-r {
-          background: var(--color-primary);
-          overflow: hidden;
-          position: relative;
-        }
-        .s01-r img {
-          width: 100%;
-          height: 100%;
-          object-fit: cover;
-          opacity: 0.72;
-        }
-        .s01-r-logo {
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          width: 100%;
-          height: 100%;
-        }
-        .s01-r-logo img {
-          max-width: 360px;
-          max-height: 360px;
-          object-fit: contain;
-          opacity: 0.85;
-        }
-
-        /* 02 */
-        .s02 {
-          display: grid;
-          grid-template-columns: 380px 1fr 420px;
-        }
-        .s02-l {
-          display: flex;
-          flex-direction: column;
-          justify-content: flex-end;
-          padding: 80px 48px 80px 60px;
-          border-right: 1px solid rgba(240, 237, 230, 0.07);
-        }
-        .s02-hdg {
-          font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-          font-size: 11px;
-          letter-spacing: 0.18em;
-          text-transform: uppercase;
-          color: var(--color-accent);
-          margin-bottom: 24px;
-        }
-        .s02-sum {
-          font-family: var(--font-display);
-          font-size: 21px;
-          font-weight: 400;
-          line-height: 1.5;
-          color: var(--color-fg);
-        }
-        .s02-c {
-          background: var(--color-accent);
-          overflow: hidden;
-        }
-        .s02-c img {
-          width: 100%;
-          height: 100%;
-          object-fit: cover;
-          opacity: 0.82;
-        }
-        .s02-r {
-          display: flex;
-          flex-direction: column;
-          justify-content: flex-end;
-          padding: 80px 60px 80px 48px;
-          border-left: 1px solid rgba(240, 237, 230, 0.07);
-        }
-        .s02-ph {
-          font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-          font-size: 11px;
-          letter-spacing: 0.18em;
-          text-transform: uppercase;
-          color: rgba(240, 237, 230, 0.38);
-          margin-bottom: 24px;
-        }
-        .s02-pillar {
-          padding: 22px 0;
-          border-top: 1px solid var(--color-accent);
-        }
-        .s02-pn {
-          font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-          font-size: 11px;
-          letter-spacing: 0.14em;
-          color: var(--color-accent);
-          margin-bottom: 6px;
-        }
-        .s02-pt {
-          font-family: var(--font-body);
-          font-size: 16px;
-          line-height: 1.45;
-          color: var(--color-fg);
-        }
-
-        /* 03 */
-        .s03 {
-          display: grid;
-          grid-template-columns: 1fr 1fr;
-          grid-template-rows: 1fr 1fr;
-          gap: 2px;
-          background: var(--color-bg-dark);
-        }
-        .s03-cell {
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          position: relative;
-          padding: 64px;
-        }
-        .s03-cell img {
-          max-width: 320px;
-          max-height: 320px;
-          object-fit: contain;
-        }
-        .s03-cap {
-          position: absolute;
-          bottom: 28px;
-          left: 36px;
-          font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-          font-size: 10px;
-          letter-spacing: 0.18em;
-          text-transform: uppercase;
-        }
-        .s03-a {
-          background: var(--color-bg-dark);
-        }
-        .s03-a .s03-cap {
-          color: rgba(240, 237, 230, 0.38);
-        }
-        .s03-b {
-          background: #f0ede6;
-        }
-        .s03-b .s03-cap {
-          color: rgba(10, 10, 10, 0.4);
-        }
-        .s03-c {
-          background: #161616;
-        }
-        .s03-c .s03-cap {
-          color: rgba(240, 237, 230, 0.38);
-        }
-        .s03-d {
-          background: var(--color-primary);
-        }
-        .s03-d .s03-cap {
-          color: rgba(240, 237, 230, 0.4);
-        }
-
-        /* 04 */
-        .s04 {
-          display: grid;
-          grid-template-columns: 1fr 440px;
-        }
-        .s04-sw-wrap {
-          display: grid;
-          grid-auto-columns: 1fr;
-          grid-auto-flow: column;
-        }
-        .s04-sw {
-          display: flex;
-          flex-direction: column;
-          justify-content: flex-end;
-          padding: 28px 22px;
-        }
-        .s04-role {
-          font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-          font-size: 10px;
-          letter-spacing: 0.16em;
-          text-transform: uppercase;
-          opacity: 0.45;
-        }
-        .s04-name {
-          font-family: var(--font-display);
-          font-size: 20px;
-          font-weight: 700;
-          margin-top: 4px;
-        }
-        .s04-hex {
-          font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-          font-size: 13px;
-          letter-spacing: 0.06em;
-          margin-top: 3px;
-        }
-        .s04-r {
-          display: flex;
-          flex-direction: column;
-          justify-content: flex-end;
-          padding: 64px 48px 64px 40px;
-          border-left: 1px solid rgba(240, 237, 230, 0.07);
-        }
-        .s04-grad {
-          height: 220px;
-          border-radius: 4px;
-          margin-bottom: 40px;
-          background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-accent) 100%);
-        }
-        .s04-grad-label {
-          font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-          font-size: 10px;
-          letter-spacing: 0.16em;
-          text-transform: uppercase;
-          color: rgba(240, 237, 230, 0.38);
-          margin-bottom: 32px;
-        }
-        .s04-pair {
-          display: flex;
-          align-items: center;
-          gap: 14px;
-          margin-bottom: 16px;
-        }
-        .s04-dot {
-          width: 28px;
-          height: 28px;
-          border-radius: 50%;
-          flex-shrink: 0;
-        }
-        .s04-pt {
-          font-family: var(--font-body);
-          font-size: 14px;
-          color: rgba(240, 237, 230, 0.38);
-        }
-
-        /* 05 */
-        .s05 {
-          display: grid;
-          grid-template-columns: 460px 1fr 480px;
-        }
-        .s05-l {
-          display: flex;
-          flex-direction: column;
-          justify-content: flex-end;
-          padding: 80px 48px 80px 72px;
-          border-right: 1px solid rgba(240, 237, 230, 0.07);
-        }
-        .s05-fn {
-          font-family: var(--font-display);
-          font-size: 80px;
-          font-weight: 700;
-          line-height: 0.92;
-          letter-spacing: -0.02em;
-        }
-        .s05-fn2 {
-          font-family: var(--font-body);
-          font-size: 36px;
-          font-weight: 400;
-          line-height: 0.92;
-          letter-spacing: -0.01em;
-          margin-top: 16px;
-          color: rgba(240, 237, 230, 0.38);
-        }
-        .s05-fw {
-          font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-          font-size: 11px;
-          letter-spacing: 0.18em;
-          text-transform: uppercase;
-          color: var(--color-accent);
-          margin-top: 20px;
-        }
-        .s05-c {
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          background: var(--color-primary);
-          overflow: hidden;
-        }
-        .s05-aa {
-          font-family: var(--font-display);
-          font-size: 480px;
-          font-weight: 700;
-          line-height: 1;
-          letter-spacing: -0.04em;
-          color: var(--color-fg);
-          opacity: 0.9;
-          margin-top: 60px;
-        }
-        .s05-r {
-          display: flex;
-          flex-direction: column;
-          justify-content: flex-end;
-          padding: 80px 72px 80px 48px;
-          border-left: 1px solid rgba(240, 237, 230, 0.07);
-        }
-        .s05-scale-head {
-          font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-          font-size: 10px;
-          letter-spacing: 0.18em;
-          text-transform: uppercase;
-          color: rgba(240, 237, 230, 0.38);
-          margin-bottom: 16px;
-        }
-        .s05-row {
-          display: flex;
-          justify-content: space-between;
-          align-items: baseline;
-          padding: 13px 0;
-          border-top: 1px solid rgba(240, 237, 230, 0.07);
-        }
-        .s05-rl {
-          font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-          font-size: 10px;
-          letter-spacing: 0.12em;
-          text-transform: uppercase;
-          color: rgba(240, 237, 230, 0.38);
-          min-width: 80px;
-        }
-
-        /* 06 */
-        .s06 {
-          display: grid;
-          grid-template-columns: repeat(3, 1fr);
-          grid-template-rows: repeat(2, 1fr);
-          gap: 2px;
-          background: var(--color-bg-dark);
-        }
-        .s06-cell {
-          position: relative;
-          overflow: hidden;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-        }
-        .s06-a {
-          background: var(--color-primary);
-        }
-        .s06-b {
-          background: var(--color-bg-dark);
-        }
-        .s06-c {
-          background: var(--color-accent);
-        }
-        .s06-d {
-          background: #161616;
-        }
-        .s06-e {
-          background: var(--color-secondary);
-        }
-        .s06-f {
-          background: var(--color-bg-dark);
-        }
-        .gfx-grid-bg {
-          position: absolute;
-          inset: 0;
-          background-image: linear-gradient(rgba(240, 237, 230, 0.07) 1px, transparent 1px),
-            linear-gradient(90deg, rgba(240, 237, 230, 0.07) 1px, transparent 1px);
-          background-size: 48px 48px;
-        }
-        .gfx-stripe-bg {
-          position: absolute;
-          inset: 0;
-          background: repeating-linear-gradient(
-            -45deg,
-            rgba(240, 237, 230, 0.06) 0,
-            rgba(240, 237, 230, 0.06) 2px,
-            transparent 2px,
-            transparent 24px
-          );
-        }
-
-        /* 07 */
-        .s07 {
-          display: grid;
-          grid-template-columns: 1fr 1fr 500px;
-          grid-template-rows: 3fr 1fr;
-          gap: 2px;
-          background: var(--color-bg-dark);
-        }
-        .s07-hero {
-          grid-row: span 2;
-          overflow: hidden;
-          background: var(--color-primary);
-        }
-        .s07-sub {
-          overflow: hidden;
-          background: var(--color-secondary);
-        }
-        .s07-copy {
-          display: flex;
-          flex-direction: column;
-          justify-content: center;
-          padding: 56px 52px;
-          background: var(--color-bg-dark);
-        }
-        .s07-copy-q {
-          font-family: var(--font-display);
-          font-size: 48px;
-          font-weight: 700;
-          line-height: 1.05;
-          letter-spacing: -0.02em;
-        }
-        .s07-copy-sub {
-          font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-          font-size: 12px;
-          letter-spacing: 0.14em;
-          text-transform: uppercase;
-          color: rgba(240, 237, 230, 0.38);
-          margin-top: 24px;
-        }
-        .s07-accent {
-          background: var(--color-accent);
-          display: flex;
-          flex-direction: column;
-          justify-content: flex-end;
-          padding: 28px 36px;
-        }
-
-        /* 08 */
-        .s08 {
-          display: grid;
-          grid-template-columns: 1.8fr 1fr;
-          grid-template-rows: 1fr 380px;
-          gap: 2px;
-          background: var(--color-bg-dark);
-        }
-        .s08-main {
-          grid-row: span 2;
-          position: relative;
-          overflow: hidden;
-          background: var(--color-primary);
-        }
-        .s08-ov {
-          position: absolute;
-          bottom: 0;
-          left: 0;
-          right: 0;
-          padding: 64px 64px 56px;
-          background: linear-gradient(to top, rgba(10, 10, 10, 0.88) 0%, transparent 100%);
-        }
-        .s08-ov-name {
-          font-family: var(--font-display);
-          font-size: 72px;
-          font-weight: 700;
-          line-height: 0.9;
-          letter-spacing: -0.03em;
-          color: var(--color-fg);
-        }
-        .s08-det {
-          overflow: hidden;
-          background: var(--color-secondary);
-          display: flex;
-          align-items: center;
-          justify-content: center;
-        }
-        .s08-copy {
-          background: var(--color-accent);
-          display: flex;
-          flex-direction: column;
-          justify-content: flex-end;
-          padding: 36px 44px;
-        }
-
-        /* 09 */
-        .s09 {
-          display: grid;
-          grid-template-rows: 330px 1fr;
-          gap: 2px;
-          background: var(--color-bg-dark);
-        }
-        .s09-strip {
-          display: grid;
-          grid-template-columns: repeat(3, 1fr);
-          gap: 2px;
-        }
-        .s09-th,
-        .s09-hero {
-          overflow: hidden;
-          position: relative;
-          background: var(--color-primary);
-        }
-        .s09-cap {
-          position: absolute;
-          bottom: 14px;
-          left: 18px;
-          font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-          font-size: 10px;
-          letter-spacing: 0.14em;
-          text-transform: uppercase;
-          color: rgba(240, 237, 230, 0.5);
-        }
-        .s09-hero-ov {
-          position: absolute;
-          bottom: 56px;
-          left: 72px;
-        }
-        .s09-hero-ov-t {
-          font-family: var(--font-display);
-          font-size: 64px;
-          font-weight: 700;
-          line-height: 0.92;
-          letter-spacing: -0.03em;
-          color: var(--color-fg);
-        }
-        .s09-hero-ov-s {
-          font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-          font-size: 11px;
-          letter-spacing: 0.16em;
-          text-transform: uppercase;
-          color: rgba(240, 237, 230, 0.55);
-          margin-top: 10px;
-        }
-
-        /* 10 */
-        .s10 {
-          display: grid;
-          grid-template-columns: 420px 1fr 420px;
-          grid-template-rows: 1fr 240px;
-          gap: 2px;
-          background: var(--color-bg-dark);
-        }
-        .s10-phone,
-        .s10-desk {
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          background: #0d0d0d;
-        }
-        .s10-merch {
-          display: grid;
-          grid-template-rows: 1fr 1fr;
-          gap: 2px;
-          background: var(--color-bg-dark);
-        }
-        .s10-mt {
-          overflow: hidden;
-          background: var(--color-primary);
-        }
-        .s10-social {
-          grid-column: span 3;
-          display: grid;
-          grid-template-columns: repeat(4, 1fr);
-          gap: 2px;
-        }
-        .s10-sc {
-          overflow: hidden;
-          background: var(--color-primary);
-        }
-        .s10-sc-fill {
-          width: 100%;
-          height: 100%;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          background: var(--color-primary);
-        }
-        .s10-sc-text {
-          font-family: var(--font-display);
-          font-size: 32px;
-          font-weight: 700;
-          letter-spacing: -0.02em;
-          opacity: 0.35;
-          color: var(--color-fg);
-        }
-
-        /* simple CSS phone + desktop (lightweight port) */
-        .phone {
-          width: 220px;
-          height: 440px;
-          background: #1c1c1e;
-          border-radius: 40px;
-          border: 2px solid #333;
-          position: relative;
-          overflow: hidden;
-          box-shadow: 0 32px 80px rgba(0, 0, 0, 0.72);
-        }
-        .phone-notch {
-          width: 80px;
-          height: 24px;
-          background: #1c1c1e;
-          border-radius: 0 0 14px 14px;
-          margin: 0 auto;
-          position: relative;
-          z-index: 2;
-        }
-        .phone-scr {
-          position: absolute;
-          inset: 0;
-          background: var(--color-primary);
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          justify-content: center;
-          gap: 10px;
-          padding: 28px;
-        }
-        .phone-scr-brand {
-          font-family: var(--font-display);
-          font-size: 22px;
-          font-weight: 700;
-          letter-spacing: -0.01em;
-          color: var(--color-fg);
-          text-align: center;
-        }
-        .phone-scr-tag {
-          font-family: var(--font-body);
-          font-size: 11px;
-          line-height: 1.4;
-          color: rgba(240, 237, 230, 0.38);
-          text-align: center;
-        }
-        .phone-scr-btn {
-          margin-top: 20px;
-          background: var(--color-accent);
-          padding: 9px 22px;
-          border-radius: 22px;
-          font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-          font-size: 9px;
-          letter-spacing: 0.14em;
-          text-transform: uppercase;
-          color: #0a0a0a;
-        }
-        .desktop {
-          width: 660px;
-          height: 414px;
-          background: #1c1c1e;
-          border-radius: 12px;
-          border: 2px solid #2c2c2e;
-          overflow: hidden;
-          box-shadow: 0 20px 60px rgba(0, 0, 0, 0.55);
-        }
-        .desktop-bar {
-          height: 32px;
-          background: #2a2a2c;
-          display: flex;
-          align-items: center;
-          padding: 0 14px;
-          gap: 7px;
-        }
-        .desktop-dot {
-          width: 10px;
-          height: 10px;
-          border-radius: 50%;
-        }
-        .desktop-scr {
-          background: #0a0a0a;
-          height: calc(100% - 32px);
-          padding: 20px;
-        }
-        .desktop-nav {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          margin-bottom: 12px;
-        }
-        .desktop-logo {
-          font-family: var(--font-display);
-          font-size: 14px;
-          font-weight: 700;
-          letter-spacing: -0.01em;
-          color: var(--color-fg);
-        }
-        .desktop-links {
-          display: flex;
-          gap: 16px;
-        }
-        .desktop-link {
-          height: 6px;
-          width: 38px;
-          background: rgba(240, 237, 230, 0.38);
-          border-radius: 3px;
-        }
-        .desktop-hero-block {
-          height: 140px;
-          background: var(--color-primary);
-          border-radius: 6px;
-          position: relative;
-          overflow: hidden;
-          margin-bottom: 10px;
-        }
-        .desktop-hero-txt {
-          position: absolute;
-          bottom: 14px;
-          left: 16px;
-          font-family: var(--font-display);
-          font-size: 24px;
-          font-weight: 700;
-          letter-spacing: -0.01em;
-          color: var(--color-fg);
-        }
-        .desktop-cards {
-          display: grid;
-          grid-template-columns: repeat(3, 1fr);
-          gap: 8px;
-        }
-        .desktop-card {
-          height: 58px;
-          border-radius: 4px;
-        }
-      `}</style>
-
-      <div className="bk-toolbar">
-        <div className="bk-title">
-          <div className="name">{brand.brand_name}</div>
-          <div className="sub">{brand.tagline}</div>
-        </div>
-        <div className="bk-actions">
-          {result.brand_kit_zip_url && (
-            <a
-              href={result.brand_kit_zip_url}
-              className="inline-flex h-10 items-center justify-center rounded-md border border-white/10 bg-white/5 px-4 text-sm text-white/80 hover:bg-white/10"
-              download
-            >
-              Download kit (.zip)
-            </a>
-          )}
-          <Button variant="outline" onClick={exportLogoPng}>
-            Export logo PNG (300dpi)
-          </Button>
-          <Button onClick={exportPdf}>Export PDF</Button>
-        </div>
-      </div>
-
-      <div className="mt-5 bk-stage" ref={containerRef}>
-        <div className="bk-inner" style={{ transform: scale !== null ? `scale(${scale})` : "scale(0)", visibility: scale !== null ? "visible" : "hidden" }}>
-          {idx === 0 && (
-            <section className="slide s01">
-              <span className="bm">{brand.brand_name}</span>
-              <span className="sn">01 —</span>
-              <div className="s01-l">
-                <div className="s01-eye">Brand Identity System</div>
-                <div className="s01-name">{brand.brand_name}</div>
-                {brand.tagline && <p className="s01-tag">{brand.tagline}</p>}
-                <div className="s01-foot">
-                  <span>Brand Kit — Version 1.0</span>
-                  <span>{new Date().toISOString().slice(0, 10)}</span>
-                </div>
-              </div>
-              <div className="s01-r">
-                {heroImg ? <img src={heroImg} alt="" className="fill" /> : (
-                  <div className="s01-r-logo">
-                    <img src={primaryLogo} alt="" />
-                  </div>
-                )}
-              </div>
-            </section>
-          )}
-
-          {idx === 1 && (
-            <section className="slide s02">
-              <span className="bm">{brand.brand_name}</span>
-              <span className="sn">02 —</span>
-              <div className="s02-l">
-                <div className="s02-hdg">Brand Essence</div>
-                <p className="s02-sum">{persona.summary}</p>
-                {persona.aesthetic_keywords?.length > 0 && (
-                  <div style={{ marginTop: 32, fontFamily: "ui-monospace, monospace", fontSize: 13, lineHeight: 2.0, color: "rgba(240,237,230,0.38)" }}>
-                    {persona.aesthetic_keywords.join(" · ")}
-                  </div>
-                )}
-              </div>
-              <div className="s02-c">
-                {heroImg && <img src={heroImg} alt="" className="fill" />}
-              </div>
-              <div className="s02-r">
-                <div className="s02-ph">Brand Pillars</div>
-                {[
-                  persona.psychographics?.[0],
-                  persona.interests?.[0],
-                  persona.purchase_signals?.[0],
-                ]
-                  .filter(Boolean)
-                  .slice(0, 3)
-                  .map((pillar, i) => (
-                    <div className="s02-pillar" key={`${pillar}-${i}`}>
-                      <div className="s02-pn">{`0${i + 1}`}</div>
-                      <div className="s02-pt">{pillar}</div>
-                    </div>
-                  ))}
-              </div>
-            </section>
-          )}
-
-          {idx === 2 && (
-            <section className="slide s03">
-              <span className="bm">{brand.brand_name}</span>
-              <span className="sn">03 —</span>
-              <div className="s03-cell s03-a">
-                <img src={primaryLogo} alt="" />
-                <span className="s03-cap">Primary</span>
-              </div>
-              <div className="s03-cell s03-b">
-                <img src={monoDark} alt="" />
-                <span className="s03-cap">Monochrome — Light Ground</span>
-              </div>
-              <div className="s03-cell s03-c">
-                <img src={monoLight} alt="" />
-                <span className="s03-cap">Monochrome — Dark Ground</span>
-              </div>
-              <div className="s03-cell s03-d">
-                <img src={onBrand} alt="" />
-                <span className="s03-cap">On Brand Color</span>
-              </div>
-            </section>
-          )}
-
-          {idx === 3 && (
-            <section className="slide s04">
-              <span className="bm">{brand.brand_name}</span>
-              <span className="sn">04 —</span>
-              <div className="s04-sw-wrap">
-                {(brand.palette ?? []).map((c) => (
-                  <div className="s04-sw" key={`${c.role}-${c.hex}`} style={{ background: c.hex, color: "rgba(10,10,10,0.85)" }}>
-                    <div className="s04-role">{c.role}</div>
-                    <div className="s04-name">{c.name}</div>
-                    <div className="s04-hex">{c.hex.toUpperCase()}</div>
-                  </div>
-                ))}
-              </div>
-              <div className="s04-r">
-                <div className="s04-grad" />
-                <div className="s04-grad-label">Primary × Accent Gradient</div>
-                <div className="s04-pair">
-                  <div className="s04-dot" style={{ background: "var(--color-primary)" }} />
-                  <div className="s04-pt">Primary — dominant structural tone</div>
-                </div>
-                <div className="s04-pair">
-                  <div className="s04-dot" style={{ background: "var(--color-accent)" }} />
-                  <div className="s04-pt">Accent — energy, CTAs, highlights</div>
-                </div>
-                <div className="s04-pair">
-                  <div className="s04-dot" style={{ background: "var(--color-secondary)" }} />
-                  <div className="s04-pt">Secondary — supporting surfaces</div>
-                </div>
-              </div>
-            </section>
-          )}
-
-          {idx === 4 && (
-            <section className="slide s05">
-              <span className="bm">{brand.brand_name}</span>
-              <span className="sn">05 —</span>
-              <div className="s05-l">
-                <div style={{ fontFamily: "ui-monospace, monospace", fontSize: 11, letterSpacing: "0.18em", textTransform: "uppercase", color: "rgba(240,237,230,0.38)", marginBottom: 32 }}>
-                  Display Type
-                </div>
-                <div className="s05-fn">{brand.typography.display.family}</div>
-                <div style={{ marginTop: 32, fontFamily: "ui-monospace, monospace", fontSize: 11, letterSpacing: "0.18em", textTransform: "uppercase", color: "rgba(240,237,230,0.38)" }}>
-                  Body Type
-                </div>
-                <div className="s05-fn2">{brand.typography.body.family}</div>
-                <div className="s05-fw">700 Bold — 400 Regular — 300 Light</div>
-              </div>
-              <div className="s05-c">
-                <span className="s05-aa">Aa</span>
-              </div>
-              <div className="s05-r">
-                <div className="s05-scale-head">Type Scale</div>
-                <div className="s05-row">
-                  <span className="s05-rl">Hero</span>
-                  <span style={{ fontFamily: "var(--font-display)", fontSize: 96, lineHeight: 1 }}>{brand.brand_name[0]}g</span>
-                </div>
-                <div className="s05-row">
-                  <span className="s05-rl">H1</span>
-                  <span style={{ fontFamily: "var(--font-display)", fontSize: 64, lineHeight: 1 }}>{brand.brand_name}</span>
-                </div>
-                <div className="s05-row">
-                  <span className="s05-rl">H2</span>
-                  <span style={{ fontFamily: "var(--font-display)", fontSize: 40, lineHeight: 1.1 }}>Brand Voice</span>
-                </div>
-                <div className="s05-row">
-                  <span className="s05-rl">Body</span>
-                  <span style={{ fontFamily: "var(--font-body)", fontSize: 18, fontWeight: 400, lineHeight: 1.5 }}>
-                    {persona.summary?.slice(0, 70) ?? "Body text at 18px, line-height 1.5."}
-                  </span>
-                </div>
-                <div className="s05-row">
-                  <span className="s05-rl">Caption</span>
-                  <span style={{ fontFamily: "ui-monospace, monospace", fontSize: 12, letterSpacing: "0.12em", textTransform: "uppercase", color: "rgba(240,237,230,0.38)" }}>
-                    12px — Mono Uppercase
-                  </span>
-                </div>
-              </div>
-            </section>
-          )}
-
-          {idx === 5 && (
-            <section className="slide s06">
-              <span className="bm">{brand.brand_name}</span>
-              <span className="sn">06 —</span>
-              <div className="s06-cell s06-a">
-                <svg width="380" height="380" viewBox="0 0 380 380">
-                  <circle cx="190" cy="190" r="180" fill="none" stroke="rgba(240,237,230,0.15)" strokeWidth="1" />
-                  <circle cx="190" cy="190" r="130" fill="none" stroke="rgba(240,237,230,0.25)" strokeWidth="1" />
-                  <circle cx="190" cy="190" r="80" fill="none" stroke="rgba(240,237,230,0.5)" strokeWidth="2" />
-                  <circle cx="190" cy="190" r="24" fill="var(--color-fg)" opacity="0.9" />
-                </svg>
-              </div>
-              <div className="s06-cell s06-b">
-                <div className="gfx-grid-bg" />
-                <svg width="240" height="240" viewBox="0 0 240 240" style={{ position: "relative", zIndex: 1 }}>
-                  <rect x="40" y="40" width="160" height="160" fill="none" stroke="var(--color-accent)" strokeWidth="2" />
-                  <line x1="120" y1="0" x2="120" y2="240" stroke="var(--color-accent)" strokeWidth="1" opacity="0.4" />
-                  <line x1="0" y1="120" x2="240" y2="120" stroke="var(--color-accent)" strokeWidth="1" opacity="0.4" />
-                  <circle cx="120" cy="120" r="6" fill="var(--color-accent)" />
-                </svg>
-              </div>
-              <div className="s06-cell s06-c">
-                <span style={{ fontFamily: "var(--font-display)", fontSize: 340, fontWeight: 700, lineHeight: 1, letterSpacing: "-0.04em", color: "rgba(10,10,10,0.18)" }}>
-                  {brand.brand_name[0]?.toUpperCase()}
-                </span>
-                <div style={{ position: "absolute", bottom: 32, left: 36, fontFamily: "ui-monospace, monospace", fontSize: 11, letterSpacing: "0.18em", textTransform: "uppercase", color: "rgba(10,10,10,0.55)" }}>
-                  Graphic Mark
-                </div>
-              </div>
-              <div className="s06-cell s06-d">
-                <div className="gfx-stripe-bg" />
-                <svg width="200" height="200" viewBox="0 0 200 200" style={{ position: "relative", zIndex: 1 }}>
-                  <polygon points="100,10 190,190 10,190" fill="none" stroke="rgba(240,237,230,0.5)" strokeWidth="2" />
-                  <polygon points="100,50 160,170 40,170" fill="rgba(240,237,230,0.08)" />
-                  <circle cx="100" cy="100" r="8" fill="var(--color-accent)" />
-                </svg>
-              </div>
-              <div className="s06-cell s06-e" style={{ flexDirection: "column", alignItems: "flex-start", padding: 48 }}>
-                <div style={{ fontFamily: "var(--font-display)", fontSize: 28, fontWeight: 700, letterSpacing: "-0.01em", color: "var(--color-bg-dark)", marginBottom: 24 }}>
-                  Aesthetic Direction
-                </div>
-                {(persona.aesthetic_keywords ?? []).slice(0, 6).map((kw) => (
-                  <div key={kw} style={{ fontFamily: "ui-monospace, monospace", fontSize: 13, letterSpacing: "0.12em", textTransform: "uppercase", color: "rgba(10,10,10,0.5)", marginBottom: 10 }}>
-                    {kw}
-                  </div>
-                ))}
-              </div>
-              <div className="s06-cell s06-f">
-                <svg width="320" height="320" viewBox="0 0 320 320">
-                  {Array.from({ length: 8 }).map((_, row) =>
-                    Array.from({ length: 8 }).map((__, col) => (
-                      <circle
-                        key={`${row}-${col}`}
-                        cx={col * 44 + 16}
-                        cy={row * 44 + 16}
-                        r={3 + ((row + col) % 3)}
-                        fill="var(--color-fg)"
-                        opacity={0.1 + (((row + col) % 5) * 0.12)}
-                      />
-                    ))
-                  )}
-                </svg>
-              </div>
-            </section>
-          )}
-
-          {idx === 6 && (
-            <section className="slide s07">
-              <span className="bm">{brand.brand_name}</span>
-              <span className="sn">07 —</span>
-              <div className="s07-hero">{mockups[0]?.url ? <img src={mockups[0].url} alt="" className="fill" /> : <img src={heroImg} alt="" className="fill" />}</div>
-              <div className="s07-sub">{mockups[1]?.url ? <img src={mockups[1].url} alt="" className="fill" /> : <img src={heroImg} alt="" className="fill" />}</div>
-              <div className="s07-copy">
-                <div className="s07-copy-q">"Obsessively<br />considered.<br />Every detail."</div>
-                {brand.voice?.examples?.[0] && <div className="s07-copy-sub">{brand.voice.examples[0].slice(0, 80)}</div>}
-              </div>
-              <div className="s07-accent">
-                <div style={{ fontFamily: "ui-monospace, monospace", fontSize: 11, letterSpacing: "0.14em", textTransform: "uppercase", color: "rgba(10,10,10,0.6)" }}>
-                  {persona.age_range} · {(persona.location_archetype ?? "").slice(0, 40)}
-                </div>
-              </div>
-            </section>
-          )}
-
-          {idx === 7 && (
-            <section className="slide s08">
-              <span className="bm">{brand.brand_name}</span>
-              <span className="sn">08 —</span>
-              <div className="s08-main">
-                {packagingImg && <img src={packagingImg} alt="" className="fill" />}
-                <div className="s08-ov">
-                  <div className="s08-ov-name">{brand.brand_name}</div>
-                  <div style={{ fontFamily: "ui-monospace, monospace", fontSize: 11, letterSpacing: "0.16em", textTransform: "uppercase", color: "rgba(240,237,230,0.38)", marginTop: 12 }}>
-                    Packaging System — v1.0
-                  </div>
-                </div>
-              </div>
-              <div className="s08-det">
-                {packagingDetail?.startsWith("http") ? <img src={packagingDetail} alt="" className="fill" /> : <img src={onBrand} alt="" className="hold" />}
-              </div>
-              <div className="s08-copy">
-                <div style={{ fontFamily: "var(--font-display)", fontSize: 28, fontWeight: 700, letterSpacing: "-0.01em", color: "#0a0a0a" }}>
-                  Every<br />touchpoint<br />matters.
-                </div>
-                <div style={{ fontFamily: "ui-monospace, monospace", fontSize: 11, letterSpacing: "0.14em", textTransform: "uppercase", color: "rgba(10,10,10,0.55)", marginTop: 8 }}>
-                  Material, form, finish
-                </div>
-              </div>
-            </section>
-          )}
-
-          {idx === 8 && (
-            <section className="slide s09">
-              <span className="bm">{brand.brand_name}</span>
-              <span className="sn">09 —</span>
-              <div className="s09-strip">
-                {[0, 1, 2].map((i) => (
-                  <div className="s09-th" key={i}>
-                    <img src={editorialStrip[i] ?? editorialHero} alt="" className="fill" />
-                    <span className="s09-cap">{`Editorial 0${i + 1} —`}</span>
-                  </div>
-                ))}
-              </div>
-              <div className="s09-hero">
-                <img src={editorialHero} alt="" className="fill" />
-                <div className="s09-hero-ov">
-                  <div className="s09-hero-ov-t">
-                    Art direction
-                    <br />
-                    by {brand.brand_name}.
-                  </div>
-                  <div className="s09-hero-ov-s">
-                    {(persona.aesthetic_keywords?.[0] ?? "").slice(0, 22)} · editorial
-                  </div>
-                </div>
-              </div>
-            </section>
-          )}
-
-          {idx === 9 && (
-            <section className="slide s10">
-              <span className="bm">{brand.brand_name}</span>
-              <span className="sn">10 —</span>
-              <div className="s10-phone">
-                <div className="phone">
-                  <div className="phone-notch" />
-                  <div className="phone-scr">
-                    <div className="phone-scr-brand">{brand.brand_name}</div>
-                    <div className="phone-scr-tag">{(brand.tagline ?? "").slice(0, 60)}</div>
-                    <div className="phone-scr-btn">Shop Now</div>
-                  </div>
-                </div>
-              </div>
-              <div className="s10-desk">
-                <div className="desktop">
-                  <div className="desktop-bar">
-                    <div className="desktop-dot" style={{ background: "#ff5f57" }} />
-                    <div className="desktop-dot" style={{ background: "#febc2e" }} />
-                    <div className="desktop-dot" style={{ background: "#28c840" }} />
-                  </div>
-                  <div className="desktop-scr">
-                    <div className="desktop-nav">
-                      <div className="desktop-logo">{brand.brand_name}</div>
-                      <div className="desktop-links">
-                        <div className="desktop-link" />
-                        <div className="desktop-link" />
-                        <div className="desktop-link" style={{ opacity: 0.4 }} />
-                      </div>
-                    </div>
-                    <div className="desktop-hero-block">
-                      <div className="desktop-hero-txt">{brand.brand_name}</div>
-                    </div>
-                    <div className="desktop-cards">
-                      <div className="desktop-card" style={{ background: "var(--color-primary)", opacity: 0.8 }} />
-                      <div className="desktop-card" style={{ background: "var(--color-accent)", opacity: 0.6 }} />
-                      <div className="desktop-card" style={{ background: "var(--color-secondary)", opacity: 0.7 }} />
-                    </div>
-                  </div>
-                </div>
-              </div>
-              <div className="s10-merch">
-                <div className="s10-mt">
-                  {mockups[0]?.url ? <img src={mockups[0].url} alt="" className="fill" /> : <img src={heroImg} alt="" className="fill" />}
-                </div>
-                <div className="s10-mt">
-                  {mockups[1]?.url ? <img src={mockups[1].url} alt="" className="fill" /> : <img src={heroImg} alt="" className="fill" />}
-                </div>
-              </div>
-              <div className="s10-social">
-                {Array.from({ length: 4 }).map((_, i) => (
-                  <div className="s10-sc" key={i}>
-                    {s10Social[i] ? (
-                      <img src={s10Social[i]} alt="" className="fill" />
-                    ) : (
-                      <div className="s10-sc-fill">
-                        <span className="s10-sc-text">{brand.brand_name[0]?.toUpperCase()}</span>
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </section>
-          )}
-        </div>
-      </div>
-
-      <div className="bk-nav">
-        <Button variant="outline" onClick={prev} disabled={idx === 0}>
-          Prev
-        </Button>
-        <div className="bk-dots" aria-label="Slide navigation">
-          {Array.from({ length: slideCount }).map((_, i) => (
-            <button
-              key={i}
-              className={`bk-dot ${i === idx ? "active" : ""}`}
-              onClick={() => go(i)}
-              aria-label={`Go to slide ${i + 1}`}
-            />
-          ))}
-        </div>
-        <Button variant="outline" onClick={next} disabled={idx === slideCount - 1}>
-          Next
-        </Button>
-      </div>
+    <div style={{
+      position: "absolute", top: 0, left: 0, right: 0,
+      display: "flex", justifyContent: "space-between", alignItems: "center",
+      padding: "28px 48px", zIndex: 20, pointerEvents: "none",
+    }}>
+      <span style={{ fontFamily: "'Space Mono',monospace", fontSize: "10px", letterSpacing: "0.18em", textTransform: "uppercase", color: t.dim }}>
+        {name}
+      </span>
+      <span style={{ fontFamily: "'Space Mono',monospace", fontSize: "10px", letterSpacing: "0.15em", color: t.accent }}>
+        {String(n + 1).padStart(2, "0")} / 10
+      </span>
     </div>
   );
 }
 
+// ─── Panel 01: Cover ──────────────────────────────────────────────────────────
+
+function Cover({ brand, persona, palette }: { brand: BrandResult["brand_assets"]; persona: BrandResult["persona"]; palette: Palette }) {
+  const t = getPanelTheme(0, palette);
+  const sec = pc(palette, "secondary");
+  const acc = pc(palette, "accent");
+  const keywords = persona?.aesthetic_keywords ?? [];
+
+  return (
+    <section className="panel" style={{ background: t.bg, overflow: "hidden" }}>
+      <Chrome n={0} name={brand.brand_name} t={t} />
+
+      {/* Geometric background */}
+      <svg style={{ position: "absolute", inset: 0, width: "100%", height: "100%", opacity: 0.12 }} viewBox="0 0 1440 900" preserveAspectRatio="xMidYMid slice">
+        <circle cx="1260" cy="120" r="500" fill={acc} className="geo-pulse" />
+        <circle cx="120" cy="780" r="320" fill={sec} className="geo-pulse2" />
+        <rect x="580" y="240" width="380" height="380" fill={acc} opacity="0.5" className="geo-spin" transform="rotate(20 770 430)" />
+        <line x1="0" y1="900" x2="1440" y2="0" stroke={sec} strokeWidth="1" opacity="0.4" />
+        <line x1="0" y1="600" x2="1440" y2="200" stroke={sec} strokeWidth="1" opacity="0.2" />
+        <circle cx="720" cy="450" r="600" fill="none" stroke={sec} strokeWidth="1" opacity="0.3" />
+      </svg>
+
+      <div style={{ position: "relative", zIndex: 2, height: "100%", display: "flex", flexDirection: "column", justifyContent: "center", padding: "0 10%", gap: 0 }}>
+        <div style={{ fontFamily: "'Space Mono',monospace", fontSize: "11px", letterSpacing: "0.3em", textTransform: "uppercase", color: t.accent, marginBottom: "28px" }}>
+          Brand Identity System — {new Date().getFullYear()}
+        </div>
+
+        <h1 style={{
+          fontFamily: `'${brand.typography?.display?.family ?? "Space Grotesk"}','Space Grotesk',sans-serif`,
+          fontSize: "clamp(72px,11vw,152px)", fontWeight: 700, lineHeight: 0.9,
+          color: t.fg, margin: 0, letterSpacing: "-0.03em",
+        }}>
+          {brand.brand_name}
+        </h1>
+
+        <div style={{ width: 100, height: 2, background: t.accent, margin: "40px 0" }} />
+
+        <p style={{
+          fontFamily: `'${brand.typography?.body?.family ?? "Inter"}',Inter,sans-serif`,
+          fontSize: "clamp(16px,2vw,26px)", color: dark(t.bg) ? sec + "cc" : t.fg + "99",
+          maxWidth: 560, margin: 0, lineHeight: 1.45, fontStyle: "italic",
+        }}>
+          {brand.tagline}
+        </p>
+
+        {keywords.length > 0 && (
+          <div style={{ marginTop: 52, display: "flex", gap: 12, flexWrap: "wrap" }}>
+            {keywords.slice(0, 5).map((kw: string) => (
+              <span key={kw} style={{
+                fontFamily: "'Space Mono',monospace", fontSize: "9px",
+                letterSpacing: "0.22em", textTransform: "uppercase",
+                color: t.accent, border: `1px solid ${t.accent}55`, padding: "6px 14px",
+              }}>
+                {kw}
+              </span>
+            ))}
+          </div>
+        )}
+      </div>
+    </section>
+  );
+}
+
+// ─── Panel 02: Brand Essence ──────────────────────────────────────────────────
+
+function Essence({ brand, palette }: { brand: BrandResult["brand_assets"]; palette: Palette }) {
+  const t = getPanelTheme(1, palette);
+  const voice = brand.voice as any;
+  const pillars: string[] = voice?.do ?? ["Quality over speed", "Story-first storytelling", "Function over decoration"];
+  const examples: string[] = voice?.examples ?? [];
+  const tone: string = voice?.tone ?? "";
+  const displayFont = `'${brand.typography?.display?.family ?? "Space Grotesk"}','Space Grotesk',sans-serif`;
+  const bodyFont = `'${brand.typography?.body?.family ?? "Inter"}',Inter,sans-serif`;
+
+  return (
+    <section className="panel" style={{ background: t.bg }}>
+      <Chrome n={1} name={brand.brand_name} t={t} />
+
+      <div style={{
+        height: "100%", display: "grid",
+        gridTemplateColumns: "1fr 1px 1fr",
+        gridTemplateRows: "1fr",
+        padding: "100px 0 60px",
+      }}>
+        {/* Left: tagline + tone */}
+        <div style={{ display: "flex", flexDirection: "column", justifyContent: "center", padding: "0 8%", gap: 32 }}>
+          <div style={{ fontFamily: "'Space Mono',monospace", fontSize: "10px", letterSpacing: "0.25em", textTransform: "uppercase", color: t.accent }}>
+            02 — Brand Essence
+          </div>
+          <h2 style={{
+            fontFamily: displayFont, fontSize: "clamp(36px,5vw,64px)",
+            fontWeight: 700, color: t.fg, lineHeight: 1.05, margin: 0,
+          }}>
+            {brand.tagline}
+          </h2>
+          {tone && (
+            <p style={{ fontFamily: bodyFont, fontSize: 15, color: t.dim, lineHeight: 1.6, maxWidth: 400, margin: 0 }}>
+              Voice: {tone}
+            </p>
+          )}
+          {examples.length > 0 && (
+            <div style={{ borderLeft: `2px solid ${t.accent}`, paddingLeft: 20, display: "flex", flexDirection: "column", gap: 10 }}>
+              {examples.slice(0, 3).map((ex: string, i: number) => (
+                <p key={i} style={{ fontFamily: displayFont, fontSize: 18, color: t.fg + "cc", margin: 0, fontStyle: "italic" }}>
+                  "{ex}"
+                </p>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Divider */}
+        <div style={{ background: t.fg + "22", margin: "10% 0" }} />
+
+        {/* Right: 3 pillars */}
+        <div style={{ display: "flex", flexDirection: "column", justifyContent: "center", padding: "0 8%", gap: 40 }}>
+          {pillars.slice(0, 3).map((pillar: string, i: number) => (
+            <div key={i} style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+                <div style={{ width: 28, height: 28, borderRadius: "50%", background: t.accent, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  <span style={{ fontFamily: "'Space Mono',monospace", fontSize: "10px", color: dark(t.accent) ? pc(palette, "secondary") : pc(palette, "fg") }}>
+                    {String(i + 1).padStart(2, "0")}
+                  </span>
+                </div>
+                <span style={{ fontFamily: "'Space Mono',monospace", fontSize: "10px", letterSpacing: "0.2em", textTransform: "uppercase", color: t.accent }}>
+                  Principle
+                </span>
+              </div>
+              <p style={{ fontFamily: displayFont, fontSize: "clamp(16px,1.8vw,22px)", color: t.fg, margin: 0, lineHeight: 1.35 }}>
+                {pillar}
+              </p>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+// ─── Panel 03: Logo Suite ─────────────────────────────────────────────────────
+
+function LogoSuite({ brand, palette }: { brand: BrandResult["brand_assets"]; palette: Palette }) {
+  const t = getPanelTheme(2, palette);
+  const fgDark = pc(palette, "fg");
+  const bgLight = pc(palette, "bg");
+  const logo = brand.logo as any;
+  const variants = [
+    { label: "Primary", url: fixUrl(logo?.primary ?? brand.logo_url), bg: bgLight, border: true },
+    { label: "Reversed", url: fixUrl(logo?.mono_light ?? logo?.primary ?? brand.logo_url), bg: fgDark, border: false },
+    { label: "On Brand", url: fixUrl(logo?.on_brand ?? logo?.primary ?? brand.logo_url), bg: pc(palette, "accent"), border: false },
+    { label: "Monochrome", url: fixUrl(logo?.mono_dark ?? logo?.primary ?? brand.logo_url), bg: pc(palette, "secondary"), border: true },
+  ];
+
+  return (
+    <section className="panel" style={{ background: t.bg }}>
+      <Chrome n={2} name={brand.brand_name} t={t} />
+
+      <div style={{ height: "100%", display: "flex", flexDirection: "column", padding: "100px 6% 60px", gap: 32 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end" }}>
+          <div>
+            <div style={{ fontFamily: "'Space Mono',monospace", fontSize: "10px", letterSpacing: "0.25em", textTransform: "uppercase", color: t.accent, marginBottom: 12 }}>
+              03 — Logo Suite
+            </div>
+            <h2 style={{ fontFamily: `'${brand.typography?.display?.family ?? "Space Grotesk"}','Space Grotesk',sans-serif`, fontSize: "clamp(28px,4vw,52px)", fontWeight: 700, color: t.fg, margin: 0 }}>
+              Logo Applications
+            </h2>
+          </div>
+          <p style={{ fontFamily: "'Space Mono',monospace", fontSize: 11, color: t.dim, maxWidth: 260, textAlign: "right", lineHeight: 1.6 }}>
+            Minimum size 24px.<br />Clear space = cap-height on all sides.
+          </p>
+        </div>
+
+        <div style={{ flex: 1, display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 16 }}>
+          {variants.map(({ label, url, bg, border }) => (
+            <div key={label} style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+              <div style={{
+                flex: 1, background: bg, display: "flex", alignItems: "center",
+                justifyContent: "center", padding: 32, minHeight: 180,
+                border: border ? `1px solid ${t.fg}22` : "none",
+              }}>
+                {url ? (
+                  <img src={url} alt={label} style={{ maxWidth: "80%", maxHeight: 120, objectFit: "contain" }} />
+                ) : (
+                  <span style={{ fontFamily: `'${brand.typography?.display?.family ?? "Space Grotesk"}','Space Grotesk',sans-serif`, fontSize: 28, fontWeight: 700, color: dark(bg) ? bgLight : fgDark }}>
+                    {brand.brand_name}
+                  </span>
+                )}
+              </div>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <span style={{ fontFamily: "'Space Mono',monospace", fontSize: 10, letterSpacing: "0.15em", textTransform: "uppercase", color: t.dim }}>
+                  {label}
+                </span>
+                <div style={{ width: 12, height: 12, background: bg, border: `1px solid ${t.fg}33` }} />
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+// ─── Panel 04: Color System ───────────────────────────────────────────────────
+
+function ColorSystem({ brand, palette }: { brand: BrandResult["brand_assets"]; palette: Palette }) {
+  const t = getPanelTheme(3, palette);
+  const primary = pc(palette, "primary");
+  const secondary = pc(palette, "secondary");
+  const accent = pc(palette, "accent");
+  const bg = pc(palette, "bg");
+  const fg = pc(palette, "fg");
+
+  const swatches = palette?.length
+    ? palette
+    : [
+        { role: "primary", hex: primary, name: "Primary" },
+        { role: "secondary", hex: secondary, name: "Secondary" },
+        { role: "accent", hex: accent, name: "Accent" },
+        { role: "bg", hex: bg, name: "Background" },
+        { role: "fg", hex: fg, name: "Foreground" },
+      ];
+
+  return (
+    <section className="panel" style={{ background: t.bg }}>
+      <Chrome n={3} name={brand.brand_name} t={t} />
+
+      <div style={{ height: "100%", display: "grid", gridTemplateColumns: "1fr 1fr", gridTemplateRows: "auto 1fr auto", gap: 0, padding: "100px 0 0" }}>
+        {/* Header */}
+        <div style={{ gridColumn: "1/-1", padding: "0 6% 40px", display: "flex", justifyContent: "space-between", alignItems: "flex-end" }}>
+          <div>
+            <div style={{ fontFamily: "'Space Mono',monospace", fontSize: "10px", letterSpacing: "0.25em", textTransform: "uppercase", color: t.accent, marginBottom: 12 }}>
+              04 — Color System
+            </div>
+            <h2 style={{ fontFamily: `'${brand.typography?.display?.family ?? "Space Grotesk"}','Space Grotesk',sans-serif`, fontSize: "clamp(28px,4vw,52px)", fontWeight: 700, color: t.fg, margin: 0 }}>
+              Palette
+            </h2>
+          </div>
+        </div>
+
+        {/* Swatches */}
+        <div style={{ gridColumn: "1/-1", display: "flex", flex: 1 }}>
+          {swatches.map((swatch: any) => (
+            <div key={swatch.role} style={{ flex: 1, background: swatch.hex, display: "flex", flexDirection: "column", justifyContent: "flex-end", padding: "0 20px 28px", minHeight: 260 }}>
+              <span style={{ fontFamily: "'Space Mono',monospace", fontSize: "9px", letterSpacing: "0.15em", textTransform: "uppercase", color: dark(swatch.hex) ? "#ffffff88" : "#00000088", display: "block", marginBottom: 6 }}>
+                {swatch.role}
+              </span>
+              <span style={{ fontFamily: `'${brand.typography?.display?.family ?? "Space Grotesk"}','Space Grotesk',sans-serif`, fontSize: 16, fontWeight: 700, color: dark(swatch.hex) ? "#ffffffe0" : "#000000cc", display: "block", marginBottom: 4 }}>
+                {swatch.name ?? swatch.role}
+              </span>
+              <span style={{ fontFamily: "'Space Mono',monospace", fontSize: 11, color: dark(swatch.hex) ? "#ffffff66" : "#00000066" }}>
+                {swatch.hex.toUpperCase()}
+              </span>
+            </div>
+          ))}
+        </div>
+
+        {/* Gradient strips */}
+        <div style={{ gridColumn: "1/-1", display: "flex", height: 48 }}>
+          <div style={{ flex: 1, background: `linear-gradient(135deg, ${primary}, ${accent})` }} />
+          <div style={{ flex: 1, background: `radial-gradient(ellipse at center, ${secondary}, ${bg})` }} />
+        </div>
+      </div>
+    </section>
+  );
+}
+
+// ─── Panel 05: Typography ─────────────────────────────────────────────────────
+
+function Typography({ brand, palette }: { brand: BrandResult["brand_assets"]; palette: Palette }) {
+  const t = getPanelTheme(4, palette);
+  const displayFamily = brand.typography?.display?.family ?? "Space Grotesk";
+  const bodyFamily = brand.typography?.body?.family ?? "Inter";
+  const displayFont = `'${displayFamily}','Space Grotesk',sans-serif`;
+  const bodyFont = `'${bodyFamily}',Inter,sans-serif`;
+
+  const scale = [
+    { label: "Display / 96px", size: 96, font: displayFont, weight: 700, text: brand.brand_name },
+    { label: "H1 / 56px", size: 56, font: displayFont, weight: 700, text: brand.tagline },
+    { label: "H2 / 36px", size: 36, font: displayFont, weight: 400, text: "Brand Identity System" },
+    { label: "Body / 18px", size: 18, font: bodyFont, weight: 400, text: "Designed for creators who move between discipline and instinct." },
+    { label: "Caption / 11px", size: 11, font: bodyFont, weight: 400, text: "© " + brand.brand_name + "  ·  All rights reserved  ·  Brand Kit 2025" },
+  ];
+
+  return (
+    <section className="panel" style={{ background: t.bg }}>
+      <Chrome n={4} name={brand.brand_name} t={t} />
+
+      <div style={{ height: "100%", display: "flex", padding: "100px 6% 60px", gap: 48 }}>
+        {/* Type scale */}
+        <div style={{ flex: 2, display: "flex", flexDirection: "column", justifyContent: "center", gap: 0, overflow: "hidden" }}>
+          <div style={{ fontFamily: "'Space Mono',monospace", fontSize: "10px", letterSpacing: "0.25em", textTransform: "uppercase", color: t.accent, marginBottom: 32 }}>
+            05 — Typography
+          </div>
+          {scale.map(({ label, size, font, weight, text }) => (
+            <div key={label} style={{ display: "flex", alignItems: "baseline", gap: 20, borderBottom: `1px solid ${t.fg}11`, padding: "12px 0" }}>
+              <span style={{ fontFamily: "'Space Mono',monospace", fontSize: 9, color: t.dim, minWidth: 120, letterSpacing: "0.1em" }}>
+                {label}
+              </span>
+              <span style={{ fontFamily: font, fontSize: Math.min(size, 56), fontWeight: weight, color: t.fg, lineHeight: 1.1, overflow: "hidden", whiteSpace: "nowrap", textOverflow: "ellipsis" }}>
+                {text}
+              </span>
+            </div>
+          ))}
+        </div>
+
+        {/* Right: typeface specimens */}
+        <div style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "center", gap: 32 }}>
+          {[
+            { family: displayFamily, weights: brand.typography?.display?.weights ?? [400, 700], label: "Display" },
+            { family: bodyFamily, weights: brand.typography?.body?.weights ?? [400, 700], label: "Body" },
+          ].map(({ family, weights, label }) => (
+            <div key={family} style={{ padding: "24px", border: `1px solid ${t.fg}22`, background: t.fg + "05" }}>
+              <div style={{ fontFamily: "'Space Mono',monospace", fontSize: 9, letterSpacing: "0.2em", textTransform: "uppercase", color: t.accent, marginBottom: 12 }}>
+                {label} / {family}
+              </div>
+              <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
+                {weights.map((w: number) => (
+                  <span key={w} style={{ fontFamily: `'${family}',sans-serif`, fontSize: 32, fontWeight: w, color: t.fg, lineHeight: 1 }}>
+                    Aa
+                  </span>
+                ))}
+              </div>
+              <div style={{ fontFamily: `'${family}',sans-serif`, fontSize: 13, color: t.dim, marginTop: 12, lineHeight: 1.5 }}>
+                ABCDEFGHIJKLMNOPQRSTUVWXYZ<br />
+                abcdefghijklmnopqrstuvwxyz<br />
+                0123456789 !@#$%
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+// ─── Panel 06: Graphic Language ───────────────────────────────────────────────
+
+function MinimalGeometry({ t, palette }: { t: PanelTheme; palette: Palette }) {
+  const acc = t.accent;
+  const fg = t.fg;
+  const sec = pc(palette, "secondary");
+  return (
+    <svg viewBox="0 0 800 600" width="100%" height="100%" style={{ position: "absolute", inset: 0 }}>
+      {/* Sparse grid lines */}
+      {[100, 200, 300, 400, 500, 600, 700].map((x) => <line key={x} x1={x} y1={0} x2={x} y2={600} stroke={fg} strokeWidth="0.5" opacity="0.15" />)}
+      {[100, 200, 300, 400, 500].map((y) => <line key={y} x1={0} y1={y} x2={800} y2={y} stroke={fg} strokeWidth="0.5" opacity="0.15" />)}
+      {/* Minimal shapes */}
+      <rect x="100" y="100" width="200" height="200" fill="none" stroke={acc} strokeWidth="1" />
+      <rect x="320" y="120" width="160" height="160" fill={acc} opacity="0.08" />
+      <line x1="100" y1="100" x2="500" y2="400" stroke={acc} strokeWidth="1" opacity="0.5" />
+      <circle cx="600" cy="200" r="80" fill="none" stroke={fg} strokeWidth="0.8" opacity="0.3" />
+      <circle cx="600" cy="200" r="4" fill={acc} />
+      <rect x="450" y="350" width="240" height="1" fill={sec} opacity="0.6" />
+      <rect x="450" y="380" width="180" height="1" fill={sec} opacity="0.4" />
+      <rect x="450" y="410" width="120" height="1" fill={sec} opacity="0.2" />
+    </svg>
+  );
+}
+
+function BoldGeometry({ t, palette }: { t: PanelTheme; palette: Palette }) {
+  const acc = t.accent;
+  const sec = pc(palette, "secondary");
+  return (
+    <svg viewBox="0 0 800 600" width="100%" height="100%" style={{ position: "absolute", inset: 0 }}>
+      <rect x="0" y="0" width="400" height="600" fill={acc} opacity="0.12" />
+      <rect x="50" y="50" width="300" height="300" fill={sec} opacity="0.15" />
+      <rect x="100" y="100" width="200" height="200" fill={acc} opacity="0.2" />
+      <polygon points="400,0 800,0 800,400" fill={t.fg} opacity="0.05" />
+      <line x1="0" y1="0" x2="800" y2="600" stroke={acc} strokeWidth="4" opacity="0.5" />
+      <line x1="800" y1="0" x2="0" y2="600" stroke={sec} strokeWidth="4" opacity="0.3" />
+      <circle cx="400" cy="300" r="150" fill="none" stroke={acc} strokeWidth="6" opacity="0.4" />
+      <circle cx="400" cy="300" r="80" fill={acc} opacity="0.15" />
+    </svg>
+  );
+}
+
+function OrganicGeometry({ t, palette }: { t: PanelTheme; palette: Palette }) {
+  const acc = t.accent;
+  const primary = pc(palette, "primary");
+  const sec = pc(palette, "secondary");
+  return (
+    <svg viewBox="0 0 800 600" width="100%" height="100%" style={{ position: "absolute", inset: 0 }}>
+      <defs>
+        <radialGradient id="og1" cx="50%" cy="50%">
+          <stop offset="0%" stopColor={acc} stopOpacity="0.3" />
+          <stop offset="100%" stopColor={primary} stopOpacity="0" />
+        </radialGradient>
+      </defs>
+      <ellipse cx="300" cy="250" rx="250" ry="200" fill="url(#og1)" className="geo-pulse" />
+      <path d="M 100 500 Q 200 200 400 300 Q 600 400 700 100" stroke={acc} strokeWidth="2" fill="none" opacity="0.5" />
+      <path d="M 0 400 Q 200 300 400 450 Q 600 600 800 350" stroke={sec} strokeWidth="1.5" fill="none" opacity="0.4" />
+      <ellipse cx="600" cy="400" rx="120" ry="90" fill={sec} opacity="0.1" />
+      <ellipse cx="150" cy="150" rx="80" ry="60" fill={acc} opacity="0.15" />
+    </svg>
+  );
+}
+
+function TechGeometry({ t, palette }: { t: PanelTheme; palette: Palette }) {
+  const acc = t.accent;
+  const sec = pc(palette, "secondary");
+  const fg = t.fg;
+  return (
+    <svg viewBox="0 0 800 600" width="100%" height="100%" style={{ position: "absolute", inset: 0 }}>
+      {/* Dense grid */}
+      {Array.from({ length: 16 }).map((_, i) => <line key={`v${i}`} x1={i * 50} y1={0} x2={i * 50} y2={600} stroke={fg} strokeWidth="0.4" opacity="0.12" />)}
+      {Array.from({ length: 12 }).map((_, i) => <line key={`h${i}`} x1={0} y1={i * 50} x2={800} y2={i * 50} stroke={fg} strokeWidth="0.4" opacity="0.12" />)}
+      {/* Sharp geometric forms */}
+      <polygon points="200,100 400,100 500,250 400,400 200,400 100,250" fill={acc} opacity="0.08" stroke={acc} strokeWidth="1" />
+      <rect x="500" y="150" width="200" height="200" fill="none" stroke={sec} strokeWidth="1" />
+      <rect x="510" y="160" width="180" height="180" fill="none" stroke={sec} strokeWidth="0.5" opacity="0.5" />
+      {/* Glitch offset */}
+      <rect x="100" y="450" width="400" height="3" fill={acc} opacity="0.6" />
+      <rect x="108" y="456" width="400" height="3" fill={sec} opacity="0.3" />
+      <line x1="600" y1="0" x2="700" y2="600" stroke={acc} strokeWidth="1" opacity="0.4" />
+    </svg>
+  );
+}
+
+function GraphicLanguage({ brand, persona, palette }: { brand: BrandResult["brand_assets"]; persona: BrandResult["persona"]; palette: Palette }) {
+  const t = getPanelTheme(5, palette);
+  const keywords = persona?.aesthetic_keywords ?? [];
+  const style = getGeometryStyle(keywords);
+  const motifs = {
+    minimal: ["Rule line", "Corner mark", "Grid overlay", "Hairline circle"],
+    bold: ["Block fill", "Diagonal slash", "Overlap mass", "Heavy stroke"],
+    organic: ["Blob shape", "Flowing arc", "Soft gradient", "Rounded form"],
+    tech: ["Data grid", "Sharp hex", "Glitch bar", "Monospace grid"],
+  }[style];
+
+  return (
+    <section className="panel" style={{ background: t.bg, overflow: "hidden" }}>
+      <Chrome n={5} name={brand.brand_name} t={t} />
+
+      <div style={{ position: "absolute", inset: 0, top: 80 }}>
+        {style === "minimal" && <MinimalGeometry t={t} palette={palette} />}
+        {style === "bold" && <BoldGeometry t={t} palette={palette} />}
+        {style === "organic" && <OrganicGeometry t={t} palette={palette} />}
+        {style === "tech" && <TechGeometry t={t} palette={palette} />}
+      </div>
+
+      <div style={{ position: "relative", zIndex: 2, height: "100%", display: "flex", flexDirection: "column", padding: "100px 6% 60px" }}>
+        <div>
+          <div style={{ fontFamily: "'Space Mono',monospace", fontSize: "10px", letterSpacing: "0.25em", textTransform: "uppercase", color: t.accent, marginBottom: 12 }}>
+            06 — Graphic Language
+          </div>
+          <h2 style={{ fontFamily: `'${brand.typography?.display?.family ?? "Space Grotesk"}','Space Grotesk',sans-serif`, fontSize: "clamp(28px,4vw,52px)", fontWeight: 700, color: t.fg, margin: 0 }}>
+            {style.charAt(0).toUpperCase() + style.slice(1)} System
+          </h2>
+        </div>
+
+        <div style={{ flex: 1 }} />
+
+        <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+          {motifs.map((m: string) => (
+            <div key={m} style={{
+              padding: "10px 20px",
+              border: `1px solid ${t.accent}55`,
+              background: t.accent + "10",
+              fontFamily: "'Space Mono',monospace",
+              fontSize: 10,
+              letterSpacing: "0.15em",
+              textTransform: "uppercase",
+              color: t.fg,
+            }}>
+              {m}
+            </div>
+          ))}
+          {keywords.slice(0, 4).map((kw: string) => (
+            <div key={kw} style={{
+              padding: "10px 20px",
+              border: `1px solid ${t.fg}22`,
+              fontFamily: "'Space Mono',monospace",
+              fontSize: 10,
+              letterSpacing: "0.15em",
+              textTransform: "uppercase",
+              color: t.dim,
+            }}>
+              {kw}
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+// ─── Panel 07: Product Mockups ────────────────────────────────────────────────
+
+function ProductMockups({ brand, palette }: { brand: BrandResult["brand_assets"]; palette: Palette }) {
+  const t = getPanelTheme(6, palette);
+  const mockups = brand.mockups ?? [];
+  const tee = fixUrl(mockups.find((m: any) => m.label === "tee")?.url ?? mockups[0]?.url);
+  const tote = fixUrl(mockups.find((m: any) => m.label === "tote")?.url ?? mockups[1]?.url);
+  const acc = t.accent;
+
+  return (
+    <section className="panel" style={{ background: t.bg }}>
+      <Chrome n={6} name={brand.brand_name} t={t} />
+
+      <div style={{ height: "100%", display: "grid", gridTemplateColumns: "1fr 1fr", padding: "88px 0 0", gap: 0 }}>
+        {/* Tee */}
+        <div style={{ position: "relative", overflow: "hidden", background: pc(palette, "secondary") }}>
+          {tee ? (
+            <img src={tee} alt="Tee mockup" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+          ) : (
+            <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <span style={{ fontFamily: "'Space Mono',monospace", fontSize: 11, color: t.dim, textTransform: "uppercase", letterSpacing: "0.2em" }}>Tee — Generating</span>
+            </div>
+          )}
+          <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, padding: "20px 28px", background: `linear-gradient(transparent, ${pc(palette, "fg")}dd)`, display: "flex", justifyContent: "space-between", alignItems: "flex-end" }}>
+            <span style={{ fontFamily: "'Space Mono',monospace", fontSize: 10, letterSpacing: "0.2em", textTransform: "uppercase", color: "#ffffff99" }}>Tee</span>
+            <span style={{ fontFamily: "'Space Mono',monospace", fontSize: 10, color: acc }}>07 / 10</span>
+          </div>
+        </div>
+
+        {/* Tote */}
+        <div style={{ position: "relative", overflow: "hidden", background: pc(palette, "primary") }}>
+          {tote ? (
+            <img src={tote} alt="Tote mockup" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+          ) : (
+            <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <span style={{ fontFamily: "'Space Mono',monospace", fontSize: 11, color: t.dim, textTransform: "uppercase", letterSpacing: "0.2em" }}>Tote — Generating</span>
+            </div>
+          )}
+          <div style={{ position: "absolute", top: "50%", left: "50%", transform: "translate(-50%,-50%)", textAlign: "center", pointerEvents: "none" }}>
+            <div style={{ fontFamily: `'${brand.typography?.display?.family ?? "Space Grotesk"}','Space Grotesk',sans-serif`, fontSize: 18, fontWeight: 700, color: "#ffffff22", letterSpacing: "0.05em" }}>
+              {brand.brand_name}
+            </div>
+          </div>
+          <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, padding: "20px 28px", background: `linear-gradient(transparent, ${pc(palette, "secondary")}dd)`, display: "flex", justifyContent: "space-between", alignItems: "flex-end" }}>
+            <span style={{ fontFamily: "'Space Mono',monospace", fontSize: 10, letterSpacing: "0.2em", textTransform: "uppercase", color: "#00000099" }}>Tote</span>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+// ─── Panel 08: Editorial Photography ──────────────────────────────────────────
+
+function Editorial({ brand, palette }: { brand: BrandResult["brand_assets"]; palette: Palette }) {
+  const t = getPanelTheme(7, palette);
+  const social = brand.social_kit ?? [];
+  const imgs = social.slice(0, 5).map((s: any) => ({ url: fixUrl(s.url), label: s.label ?? "" }));
+  const sec = pc(palette, "secondary");
+
+  return (
+    <section className="panel" style={{ background: t.bg }}>
+      <Chrome n={7} name={brand.brand_name} t={t} />
+
+      <div style={{ height: "100%", display: "flex", flexDirection: "column", padding: "100px 6% 60px", gap: 24 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end" }}>
+          <div>
+            <div style={{ fontFamily: "'Space Mono',monospace", fontSize: "10px", letterSpacing: "0.25em", textTransform: "uppercase", color: t.accent, marginBottom: 12 }}>
+              08 — Editorial Direction
+            </div>
+            <h2 style={{ fontFamily: `'${brand.typography?.display?.family ?? "Space Grotesk"}','Space Grotesk',sans-serif`, fontSize: "clamp(28px,4vw,52px)", fontWeight: 700, color: t.fg, margin: 0 }}>
+              Visual World
+            </h2>
+          </div>
+          <p style={{ fontFamily: "'Space Mono',monospace", fontSize: 11, color: t.dim, maxWidth: 300, textAlign: "right", lineHeight: 1.7 }}>
+            Shoot natural light or hard shadow.<br />
+            No studio white. Texture first.<br />
+            Product as prop, not hero.
+          </p>
+        </div>
+
+        {/* Bento grid */}
+        <div style={{ flex: 1, display: "grid", gridTemplateColumns: "2fr 1fr 1fr", gridTemplateRows: "1fr 1fr", gap: 8 }}>
+          {/* Hero large */}
+          <div style={{ gridRow: "1/3", position: "relative", overflow: "hidden", background: sec + "44" }}>
+            {imgs[2]?.url ? (
+              <img src={imgs[2].url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+            ) : (
+              <div style={{ width: "100%", height: "100%", background: `linear-gradient(135deg, ${t.accent}22, ${sec}44)` }} />
+            )}
+            <div style={{ position: "absolute", bottom: 20, left: 20 }}>
+              <span style={{ fontFamily: "'Space Mono',monospace", fontSize: 9, letterSpacing: "0.2em", textTransform: "uppercase", color: "#ffffff88" }}>Hero</span>
+            </div>
+          </div>
+
+          {[imgs[0], imgs[1], imgs[3], imgs[4]].map((img, i) => (
+            <div key={i} style={{ position: "relative", overflow: "hidden", background: t.fg + "11" }}>
+              {img?.url ? (
+                <img src={img.url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+              ) : (
+                <div style={{ width: "100%", height: "100%", background: `linear-gradient(${45 + i * 30}deg, ${t.accent}11, ${sec}22)` }} />
+              )}
+              {img?.label && (
+                <div style={{ position: "absolute", bottom: 10, left: 10 }}>
+                  <span style={{ fontFamily: "'Space Mono',monospace", fontSize: 8, letterSpacing: "0.15em", textTransform: "uppercase", color: "#ffffff66" }}>
+                    {img.label.replace(/_/g, " ")}
+                  </span>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+// ─── Panel 09: Cross-Platform ─────────────────────────────────────────────────
+
+function CrossPlatform({ brand, palette }: { brand: BrandResult["brand_assets"]; palette: Palette }) {
+  const t = getPanelTheme(8, palette);
+  const logo = brand.logo as any;
+  const logoUrl = fixUrl(logo?.primary ?? brand.logo_url);
+  const primary = pc(palette, "primary");
+  const fg = pc(palette, "fg");
+  const acc = t.accent;
+  const bodyFont = `'${brand.typography?.body?.family ?? "Inter"}',Inter,sans-serif`;
+  const displayFont = `'${brand.typography?.display?.family ?? "Space Grotesk"}','Space Grotesk',sans-serif`;
+
+  return (
+    <section className="panel" style={{ background: t.bg }}>
+      <Chrome n={8} name={brand.brand_name} t={t} />
+
+      <div style={{ height: "100%", display: "grid", gridTemplateColumns: "1fr 2fr", padding: "100px 6% 60px", gap: 48 }}>
+        {/* Left: Phone frame */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+          <div style={{ fontFamily: "'Space Mono',monospace", fontSize: "10px", letterSpacing: "0.25em", textTransform: "uppercase", color: t.accent, marginBottom: 4 }}>
+            09 — Cross-Platform
+          </div>
+          <div style={{
+            width: 200, height: 380, border: `3px solid ${t.fg}44`, borderRadius: 28,
+            padding: "40px 16px 20px", display: "flex", flexDirection: "column",
+            alignItems: "center", gap: 12, background: primary, position: "relative",
+            margin: "0 auto",
+          }}>
+            {/* Notch */}
+            <div style={{ position: "absolute", top: 14, left: "50%", transform: "translateX(-50%)", width: 50, height: 8, background: t.fg + "44", borderRadius: 4 }} />
+            {/* Screen */}
+            <div style={{ flex: 1, width: "100%", background: pc(palette, "bg"), borderRadius: 12, overflow: "hidden", display: "flex", flexDirection: "column" }}>
+              {/* Nav bar */}
+              <div style={{ padding: "10px 12px", borderBottom: `1px solid ${fg}11`, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                {logoUrl ? (
+                  <img src={logoUrl} alt="" style={{ height: 16, objectFit: "contain" }} />
+                ) : (
+                  <span style={{ fontFamily: displayFont, fontSize: 11, fontWeight: 700, color: fg }}>{brand.brand_name}</span>
+                )}
+                <div style={{ display: "flex", gap: 4 }}>
+                  {[1,2,3].map(i => <div key={i} style={{ width: 4, height: 4, borderRadius: "50%", background: fg + "44" }} />)}
+                </div>
+              </div>
+              {/* Hero block */}
+              <div style={{ height: 80, background: `linear-gradient(135deg, ${primary}, ${acc})`, margin: 8, borderRadius: 6 }} />
+              {/* Content lines */}
+              <div style={{ padding: "0 12px", display: "flex", flexDirection: "column", gap: 6 }}>
+                {[100, 85, 70].map((w, i) => <div key={i} style={{ height: 8, background: fg + "22", borderRadius: 2, width: `${w}%` }} />)}
+              </div>
+              {/* CTA */}
+              <div style={{ margin: "12px 12px 0", height: 28, background: acc, borderRadius: 6, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <span style={{ fontFamily: "'Space Mono',monospace", fontSize: 8, color: dark(acc) ? "#fff" : "#000", letterSpacing: "0.15em", textTransform: "uppercase" }}>
+                  Shop Now
+                </span>
+              </div>
+            </div>
+            {/* Home indicator */}
+            <div style={{ width: 50, height: 4, background: t.fg + "33", borderRadius: 2 }} />
+          </div>
+          <p style={{ fontFamily: bodyFont, fontSize: 11, color: t.dim, textAlign: "center", lineHeight: 1.5 }}>
+            Mobile-first<br />primary touchpoint
+          </p>
+        </div>
+
+        {/* Right: Desktop UI strip + merch grid */}
+        <div style={{ display: "flex", flexDirection: "column", justifyContent: "center", gap: 32 }}>
+          {/* Desktop bar */}
+          <div style={{ border: `1px solid ${t.fg}22`, borderRadius: 8, overflow: "hidden" }}>
+            <div style={{ height: 32, background: t.fg + "11", display: "flex", alignItems: "center", gap: 8, padding: "0 16px" }}>
+              {[acc, t.dim, t.dim].map((c, i) => <div key={i} style={{ width: 10, height: 10, borderRadius: "50%", background: c }} />)}
+              <div style={{ flex: 1, height: 16, background: t.fg + "11", borderRadius: 8, marginLeft: 8 }} />
+            </div>
+            <div style={{ height: 100, background: `linear-gradient(90deg, ${primary}22, ${acc}11)`, display: "flex", alignItems: "center", justifyContent: "center" }}>
+              {logoUrl ? (
+                <img src={logoUrl} alt="" style={{ height: 40, objectFit: "contain", opacity: 0.9 }} />
+              ) : (
+                <span style={{ fontFamily: displayFont, fontSize: 28, fontWeight: 700, color: t.fg }}>{brand.brand_name}</span>
+              )}
+            </div>
+            <div style={{ padding: "16px", display: "flex", gap: 8 }}>
+              {[1,2,3,4].map(i => <div key={i} style={{ flex: 1, height: 60, background: t.fg + "08", borderRadius: 4, border: `1px solid ${t.fg}11` }} />)}
+            </div>
+          </div>
+
+          {/* Merch tokens */}
+          <div>
+            <div style={{ fontFamily: "'Space Mono',monospace", fontSize: 9, letterSpacing: "0.2em", textTransform: "uppercase", color: t.dim, marginBottom: 12 }}>
+              Merch Grid
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 8 }}>
+              {["Tee","Tote","Cap","Poster"].map((item) => (
+                <div key={item} style={{
+                  aspectRatio: "3/4", background: primary,
+                  border: `1px solid ${t.fg}22`,
+                  display: "flex", flexDirection: "column", alignItems: "center",
+                  justifyContent: "flex-end", padding: "8px",
+                }}>
+                  <span style={{ fontFamily: "'Space Mono',monospace", fontSize: 8, letterSpacing: "0.1em", textTransform: "uppercase", color: dark(primary) ? "#ffffff66" : "#00000066" }}>
+                    {item}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+// ─── Panel 10: Motion + Retail ────────────────────────────────────────────────
+
+function MotionRetail({ brand, palette, onPrint }: { brand: BrandResult["brand_assets"]; palette: Palette; onPrint: () => void }) {
+  const t = getPanelTheme(9, palette);
+  const sec = pc(palette, "secondary");
+  const bodyFont = `'${brand.typography?.body?.family ?? "Inter"}',Inter,sans-serif`;
+  const displayFont = `'${brand.typography?.display?.family ?? "Space Grotesk"}','Space Grotesk',sans-serif`;
+
+  const motionCues = [
+    { label: "Entrance", desc: "Slide up 40px, opacity 0→1, 400ms ease-out" },
+    { label: "Hover", desc: "Scale 1→1.02, 200ms ease, accent underline reveal" },
+    { label: "Transition", desc: "Cross-dissolve 300ms, brand color flash frame" },
+    { label: "Loading", desc: "Pulsing dot sequence in accent, 800ms loop" },
+  ];
+
+  return (
+    <section className="panel" style={{ background: t.bg }}>
+      <Chrome n={9} name={brand.brand_name} t={t} />
+
+      <div style={{ height: "100%", display: "grid", gridTemplateColumns: "1fr 1fr", padding: "100px 6% 60px", gap: 48 }}>
+        {/* Motion cues */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 28 }}>
+          <div>
+            <div style={{ fontFamily: "'Space Mono',monospace", fontSize: "10px", letterSpacing: "0.25em", textTransform: "uppercase", color: t.accent, marginBottom: 12 }}>
+              10 — Motion + Retail
+            </div>
+            <h2 style={{ fontFamily: displayFont, fontSize: "clamp(24px,3.5vw,44px)", fontWeight: 700, color: t.fg, margin: 0 }}>
+              Motion System
+            </h2>
+          </div>
+
+          <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+            {motionCues.map(({ label, desc }) => (
+              <div key={label} style={{ display: "flex", gap: 20, alignItems: "flex-start" }}>
+                {/* Animated dot */}
+                <div style={{ width: 8, height: 8, borderRadius: "50%", background: t.accent, marginTop: 5, flexShrink: 0 }} className="geo-pulse" />
+                <div>
+                  <div style={{ fontFamily: "'Space Mono',monospace", fontSize: 10, letterSpacing: "0.15em", textTransform: "uppercase", color: t.accent, marginBottom: 4 }}>
+                    {label}
+                  </div>
+                  <p style={{ fontFamily: bodyFont, fontSize: 14, color: t.fg + "cc", margin: 0, lineHeight: 1.5 }}>
+                    {desc}
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Retail concept */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
+          <h3 style={{ fontFamily: displayFont, fontSize: "clamp(20px,2.5vw,36px)", fontWeight: 700, color: t.fg, margin: 0 }}>
+            Retail Environment
+          </h3>
+
+          {/* Illustrated concept block */}
+          <div style={{ flex: 1, border: `1px solid ${t.fg}22`, position: "relative", overflow: "hidden", minHeight: 200 }}>
+            <svg viewBox="0 0 500 300" width="100%" height="100%" style={{ position: "absolute", inset: 0 }}>
+              {/* Shelf */}
+              <rect x="0" y="200" width="500" height="4" fill={sec} opacity="0.4" />
+              <rect x="0" y="296" width="500" height="4" fill={sec} opacity="0.2" />
+              {/* Products on shelf */}
+              {[60, 140, 220, 300, 380].map((x, i) => (
+                <g key={x}>
+                  <rect x={x} y={140 + (i % 2) * 20} width={50} height={60 - (i % 2) * 20} fill={i % 2 === 0 ? t.accent : sec} opacity={0.3 + i * 0.08} />
+                  <rect x={x + 14} y={155 + (i % 2) * 20} width={22} height={30 - (i % 2) * 10} fill={t.bg} opacity="0.5" />
+                </g>
+              ))}
+              {/* Price tags */}
+              <line x1="200" y1="80" x2="200" y2="140" stroke={t.fg} strokeWidth="0.5" opacity="0.3" />
+              <rect x="170" y="60" width="60" height="20" fill={t.accent} opacity="0.8" />
+              {/* Brand signage */}
+              <rect x="150" y="20" width="200" height="30" fill={t.fg} opacity="0.1" />
+            </svg>
+            <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", pointerEvents: "none" }}>
+              <span style={{ fontFamily: displayFont, fontSize: 14, fontWeight: 700, color: dark(t.bg) ? sec + "55" : t.fg + "22", letterSpacing: "0.2em", textTransform: "uppercase" }}>
+                {brand.brand_name} — Retail Concept
+              </span>
+            </div>
+          </div>
+
+          <p style={{ fontFamily: bodyFont, fontSize: 13, color: t.dim, lineHeight: 1.6, margin: 0 }}>
+            Matte shelf presence. Minimal signage. Let texture sell.
+            One SKU per shelf face — clarity over abundance.
+          </p>
+
+          {/* Export button */}
+          <button
+            onClick={onPrint}
+            style={{
+              fontFamily: "'Space Mono',monospace", fontSize: 11, letterSpacing: "0.2em",
+              textTransform: "uppercase", cursor: "pointer",
+              background: t.accent, color: dark(t.accent) ? "#fff" : "#000",
+              border: "none", padding: "14px 28px", alignSelf: "flex-start",
+              transition: "opacity .2s",
+            }}
+            onMouseEnter={(e) => (e.currentTarget.style.opacity = "0.8")}
+            onMouseLeave={(e) => (e.currentTarget.style.opacity = "1")}
+          >
+            Export PDF — All 10 Pages
+          </button>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+// ─── Main Component ───────────────────────────────────────────────────────────
+
+type Props = { result: BrandResult; className?: string };
+
+export function BrandKitSlides({ result, className }: Props) {
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const [currentIdx, setCurrentIdx] = useState(0);
+  const panelRefs = useRef<(HTMLElement | null)[]>([]);
+
+  const brand = result.brand_assets;
+  const persona = result.persona;
+  const palette = brand.palette ?? [];
+
+  // Step 2: console.log full result on mount + verify image URLs
+  useEffect(() => {
+    console.log("[BrandKit] full result:", result);
+    const logo = brand.logo as any;
+    console.log("[BrandKit] image srcs", {
+      logo_primary: fixUrl(logo?.primary ?? brand.logo_url),
+      mockup0: fixUrl((brand.mockups ?? [])[0]?.url),
+      mockup1: fixUrl((brand.mockups ?? [])[1]?.url),
+      social0: fixUrl((brand.social_kit ?? [])[0]?.url),
+      social2: fixUrl((brand.social_kit ?? [])[2]?.url),
+    });
+  }, []);
+
+  // Track current panel on scroll
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const onScroll = () => {
+      const panels = panelRefs.current;
+      const scrollTop = el.scrollTop;
+      const height = el.clientHeight;
+      const idx = Math.round(scrollTop / height);
+      setCurrentIdx(Math.max(0, Math.min(9, idx)));
+    };
+    el.addEventListener("scroll", onScroll, { passive: true });
+    return () => el.removeEventListener("scroll", onScroll);
+  }, []);
+
+  const scrollTo = (i: number) => {
+    const el = containerRef.current;
+    if (!el) return;
+    el.scrollTo({ top: i * el.clientHeight, behavior: "smooth" });
+  };
+
+  const handlePrint = () => window.print();
+
+  const panels = [
+    <Cover key="cover" brand={brand} persona={persona} palette={palette} />,
+    <Essence key="essence" brand={brand} palette={palette} />,
+    <LogoSuite key="logos" brand={brand} palette={palette} />,
+    <ColorSystem key="colors" brand={brand} palette={palette} />,
+    <Typography key="type" brand={brand} palette={palette} />,
+    <GraphicLanguage key="graphic" brand={brand} persona={persona} palette={palette} />,
+    <ProductMockups key="mockups" brand={brand} palette={palette} />,
+    <Editorial key="editorial" brand={brand} palette={palette} />,
+    <CrossPlatform key="crossplatform" brand={brand} palette={palette} />,
+    <MotionRetail key="motion" brand={brand} palette={palette} onPrint={handlePrint} />,
+  ];
+
+  return (
+    <div className={className} style={{ position: "relative" }}>
+      <style jsx global>{`
+        @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;700&family=Space+Mono:wght@400;700&display=swap');
+
+        .bk-scroll {
+          height: 100vh;
+          overflow-y: scroll;
+          scroll-snap-type: y mandatory;
+          scroll-behavior: smooth;
+          -webkit-overflow-scrolling: touch;
+        }
+        .panel {
+          scroll-snap-align: start;
+          scroll-snap-stop: always;
+          height: 100vh;
+          min-height: 100vh;
+          position: relative;
+          box-sizing: border-box;
+        }
+
+        /* Geometric animations */
+        @keyframes pulse { 0%,100%{transform:scale(1)} 50%{transform:scale(1.06)} }
+        @keyframes pulse2 { 0%,100%{transform:scale(1)} 50%{transform:scale(0.94)} }
+        @keyframes spin { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
+        .geo-pulse { animation: pulse 6s ease-in-out infinite; transform-origin: center; }
+        .geo-pulse2 { animation: pulse2 8s ease-in-out infinite; transform-origin: center; }
+        .geo-spin { animation: spin 30s linear infinite; transform-origin: 50% 50%; }
+
+        /* Nav dots */
+        .bk-nav-dot {
+          width: 6px; height: 6px; border-radius: 50%;
+          transition: background .3s, transform .3s;
+          cursor: pointer; border: none; padding: 0;
+        }
+
+        /* Print styles */
+        @media print {
+          .bk-scroll {
+            height: auto !important;
+            overflow: visible !important;
+            scroll-snap-type: none !important;
+          }
+          .panel {
+            height: 100vh !important;
+            page-break-after: always;
+            break-after: page;
+            scroll-snap-align: none !important;
+          }
+          .bk-nav, .bk-toolbar { display: none !important; }
+        }
+      `}</style>
+
+      {/* Scroll container */}
+      <div ref={containerRef} className="bk-scroll">
+        {panels.map((panel, i) => (
+          <div key={i} ref={(el) => { panelRefs.current[i] = el as HTMLElement | null; }}>
+            {panel}
+          </div>
+        ))}
+      </div>
+
+      {/* Nav dots */}
+      <div
+        className="bk-nav"
+        style={{
+          position: "fixed", right: 24, top: "50%", transform: "translateY(-50%)",
+          display: "flex", flexDirection: "column", gap: 10, zIndex: 100,
+        }}
+      >
+        {panels.map((_, i) => {
+          const t = getPanelTheme(i, palette);
+          return (
+            <button
+              key={i}
+              className="bk-nav-dot"
+              onClick={() => scrollTo(i)}
+              style={{
+                background: currentIdx === i ? t.accent : t.fg + "44",
+                transform: currentIdx === i ? "scale(1.5)" : "scale(1)",
+              }}
+            />
+          );
+        })}
+      </div>
+    </div>
+  );
+}
