@@ -41,7 +41,7 @@ function lum(hex: string): number {
 }
 const dark = (hex: string) => lum(hex) < 140;
 
-const BG_SEQ = ["primary","bg","secondary","fg","bg","primary","bg","fg","secondary","primary","bg"] as const;
+const BG_SEQ = ["primary","bg","secondary","fg","bg","primary","bg","fg","secondary","primary","bg","secondary"] as const;
 
 export function getPanelTheme(i: number, palette: Palette): PanelTheme {
   const bgRole = BG_SEQ[i] ?? "bg";
@@ -87,7 +87,7 @@ function Chrome({ n, name, t }: { n: number; name: string; t: PanelTheme }) {
         {name}
       </span>
       <span style={{ fontFamily: "'Space Mono',monospace", fontSize: "10px", letterSpacing: "0.15em", color: t.accent }}>
-        {String(n + 1).padStart(2, "0")} / 11
+        {String(n + 1).padStart(2, "0")} / 12
       </span>
     </div>
   );
@@ -994,7 +994,188 @@ function SocialCaptions({
   );
 }
 
-// ─── Panel 11: Motion + Retail ────────────────────────────────────────────────
+// ─── Panel 11: Agency Matches ─────────────────────────────────────────────────
+
+function AgencyMatches({
+  agencies, brand, palette,
+}: {
+  agencies: BrandResult["agency_matches"];
+  brand: BrandResult["brand_assets"];
+  palette: Palette;
+}) {
+  const t           = getPanelTheme(10, palette);
+  const [toast, setToast] = useState<string | null>(null);
+
+  const displayFont = `'${brand.typography?.display?.family ?? "Space Grotesk"}','Space Grotesk',sans-serif`;
+  const bodyFont    = `'${brand.typography?.body?.family ?? "Inter"}',Inter,sans-serif`;
+  const primary     = pc(palette, "primary");
+  const secondary   = pc(palette, "secondary");
+  const accent      = pc(palette, "accent");
+
+  const showToast = (name: string) => {
+    setToast(`Intro request sent to ${name}`);
+    setTimeout(() => setToast(null), 2500);
+  };
+
+  const cards = agencies?.slice(0, 3) ?? [];
+
+  return (
+    <section className="panel" style={{ background: t.bg, overflow: "hidden" }}>
+      <Chrome n={10} name={brand.brand_name} t={t} />
+
+      {/* Background geometry: one large faint circle per card column */}
+      <svg
+        style={{ position: "absolute", inset: 0, width: "100%", height: "100%", pointerEvents: "none" }}
+        viewBox="0 0 1440 900"
+        preserveAspectRatio="xMidYMid slice"
+      >
+        <circle cx="240"  cy="520" r="340" fill={primary}   opacity="0.06" className="geo-pulse" />
+        <circle cx="720"  cy="420" r="320" fill={secondary} opacity="0.07" className="geo-pulse2" />
+        <circle cx="1200" cy="510" r="340" fill={accent}    opacity="0.05" className="geo-pulse" />
+      </svg>
+
+      <div style={{ position: "relative", zIndex: 2, height: "100%", display: "flex", flexDirection: "column", padding: "100px 6% 60px", gap: 28 }}>
+        {/* Header */}
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", flexShrink: 0 }}>
+          <div>
+            <div style={{ fontFamily: "'Space Mono',monospace", fontSize: "10px", letterSpacing: "0.25em", textTransform: "uppercase", color: t.accent, marginBottom: 12 }}>
+              11 — Agency Matches
+            </div>
+            <h2 style={{ fontFamily: displayFont, fontSize: "clamp(28px,4vw,52px)", fontWeight: 700, color: t.fg, margin: 0 }}>
+              Your Brand Partners
+            </h2>
+          </div>
+          <p style={{ fontFamily: "'Space Mono',monospace", fontSize: 11, color: t.dim, maxWidth: 240, textAlign: "right", lineHeight: 1.7 }}>
+            Matched by audience<br />embedding similarity
+          </p>
+        </div>
+
+        {/* 3 cards */}
+        <div style={{ flex: 1, display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 20, minHeight: 0 }}>
+          {cards.map((agency) => {
+            const scorePct = Math.round(
+              agency.match_score > 1 ? agency.match_score : agency.match_score * 100
+            );
+            return (
+              <div
+                key={agency.agency_id}
+                style={{
+                  border: `1px solid ${t.fg}18`,
+                  background: t.fg + "05",
+                  padding: "28px 24px",
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 16,
+                }}
+              >
+                {/* Name + big score */}
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8 }}>
+                  <h3 style={{
+                    fontFamily: displayFont, fontSize: "clamp(16px,1.8vw,24px)",
+                    fontWeight: 700, color: t.fg, margin: 0, lineHeight: 1.2,
+                  }}>
+                    {agency.name}
+                  </h3>
+                  <span style={{
+                    fontFamily: "'Space Mono',monospace",
+                    fontSize: "clamp(32px,3.5vw,52px)",
+                    fontWeight: 700, color: t.accent, lineHeight: 1, flexShrink: 0,
+                  }}>
+                    {scorePct}%
+                  </span>
+                </div>
+
+                {/* Progress bar */}
+                <div style={{ height: 3, background: t.fg + "18", borderRadius: 2 }}>
+                  <div style={{
+                    height: "100%", background: t.accent,
+                    borderRadius: 2, width: `${scorePct}%`,
+                  }} />
+                </div>
+
+                {/* Blurb */}
+                <p style={{
+                  fontFamily: bodyFont, fontSize: 13, color: t.fg + "cc",
+                  margin: 0, lineHeight: 1.65,
+                }}>
+                  {agency.blurb}
+                </p>
+
+                {/* Why */}
+                <div style={{ borderLeft: `2px solid ${t.accent}55`, paddingLeft: 14 }}>
+                  <span style={{
+                    fontFamily: "'Space Mono',monospace", fontSize: 9,
+                    letterSpacing: "0.18em", textTransform: "uppercase",
+                    color: t.accent, display: "block", marginBottom: 6,
+                  }}>
+                    Why you matched
+                  </span>
+                  <p style={{
+                    fontFamily: bodyFont, fontSize: 12, color: t.dim,
+                    margin: 0, lineHeight: 1.6, fontStyle: "italic",
+                  }}>
+                    {agency.why}
+                  </p>
+                </div>
+
+                {/* Specialty tag chips */}
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                  {agency.specialty_tags.map((tag) => (
+                    <span
+                      key={tag}
+                      style={{
+                        fontFamily: "'Space Mono',monospace", fontSize: 9,
+                        letterSpacing: "0.12em", textTransform: "uppercase",
+                        color: t.dim, border: `1px solid ${t.fg}22`,
+                        padding: "4px 10px",
+                      }}
+                    >
+                      {tag}
+                    </span>
+                  ))}
+                </div>
+
+                <div style={{ flex: 1 }} />
+
+                {/* Request intro button */}
+                <button
+                  onClick={() => showToast(agency.name)}
+                  style={{
+                    fontFamily: "'Space Mono',monospace", fontSize: 10,
+                    letterSpacing: "0.18em", textTransform: "uppercase",
+                    cursor: "pointer", background: t.accent,
+                    color: dark(t.accent) ? "#fff" : "#000",
+                    border: "none", padding: "12px 20px", width: "100%",
+                    transition: "opacity .2s",
+                  }}
+                  onMouseEnter={(e) => (e.currentTarget.style.opacity = "0.8")}
+                  onMouseLeave={(e) => (e.currentTarget.style.opacity = "1")}
+                >
+                  Request Intro
+                </button>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Panel-scoped toast */}
+      {toast && (
+        <div style={{
+          position: "absolute", bottom: 32, left: "50%", transform: "translateX(-50%)",
+          background: t.fg, color: t.bg,
+          fontFamily: "'Space Mono',monospace", fontSize: 11, letterSpacing: "0.15em",
+          padding: "12px 28px", zIndex: 50, whiteSpace: "nowrap",
+          boxShadow: `0 4px 24px ${t.accent}33`,
+        }}>
+          {toast}
+        </div>
+      )}
+    </section>
+  );
+}
+
+// ─── Panel 12: Motion + Retail ────────────────────────────────────────────────
 
 function MotionRetail({ brand, palette, onPrint }: { brand: BrandResult["brand_assets"]; palette: Palette; onPrint: () => void }) {
   const t = getPanelTheme(9, palette);
@@ -1011,14 +1192,14 @@ function MotionRetail({ brand, palette, onPrint }: { brand: BrandResult["brand_a
 
   return (
     <section className="panel" style={{ background: t.bg }}>
-      <Chrome n={10} name={brand.brand_name} t={t} />
+      <Chrome n={11} name={brand.brand_name} t={t} />
 
       <div style={{ height: "100%", display: "grid", gridTemplateColumns: "1fr 1fr", padding: "100px 6% 60px", gap: 48 }}>
         {/* Motion cues */}
         <div style={{ display: "flex", flexDirection: "column", gap: 28 }}>
           <div>
             <div style={{ fontFamily: "'Space Mono',monospace", fontSize: "10px", letterSpacing: "0.25em", textTransform: "uppercase", color: t.accent, marginBottom: 12 }}>
-              11 — Motion + Retail
+              12 — Motion + Retail
             </div>
             <h2 style={{ fontFamily: displayFont, fontSize: "clamp(24px,3.5vw,44px)", fontWeight: 700, color: t.fg, margin: 0 }}>
               Motion System
@@ -1093,7 +1274,7 @@ function MotionRetail({ brand, palette, onPrint }: { brand: BrandResult["brand_a
             onMouseEnter={(e) => (e.currentTarget.style.opacity = "0.8")}
             onMouseLeave={(e) => (e.currentTarget.style.opacity = "1")}
           >
-            Export PDF — All 11 Pages
+            Export PDF — All 12 Pages
           </button>
         </div>
       </div>
@@ -1136,7 +1317,7 @@ export function BrandKitSlides({ result, className }: Props) {
       const scrollTop = el.scrollTop;
       const height = el.clientHeight;
       const idx = Math.round(scrollTop / height);
-      setCurrentIdx(Math.max(0, Math.min(10, idx)));
+      setCurrentIdx(Math.max(0, Math.min(11, idx)));
     };
     el.addEventListener("scroll", onScroll, { passive: true });
     return () => el.removeEventListener("scroll", onScroll);
@@ -1161,6 +1342,7 @@ export function BrandKitSlides({ result, className }: Props) {
     <Editorial key="editorial" brand={brand} palette={palette} />,
     <CrossPlatform key="crossplatform" brand={brand} palette={palette} />,
     <SocialCaptions key="social" brand={brand} persona={persona} palette={palette} />,
+    <AgencyMatches key="agencies" agencies={result.agency_matches} brand={brand} palette={palette} />,
     <MotionRetail key="motion" brand={brand} palette={palette} onPrint={handlePrint} />,
   ];
 
