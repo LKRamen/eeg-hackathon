@@ -4,8 +4,7 @@
 
 @layer base {
   :root {
-<<<<<<< HEAD
-    /* shadcn HSL tokens — lavender dark theme */
+    /* shadcn HSL tokens — lavender dark theme (matches body styles below) */
     --background: 260 10% 6%;
     --foreground: 270 14% 95%;
     --card: 270 12% 9%;
@@ -25,27 +24,6 @@
     --border: 270 10% 14%;
     --input: 270 10% 14%;
     --ring: 262 100% 87%;
-=======
-    --background: 0 0% 0%;
-    --foreground: 0 0% 98%;
-    --card: 0 0% 5%;
-    --card-foreground: 0 0% 98%;
-    --popover: 240 10% 3.9%;
-    --popover-foreground: 0 0% 98%;
-    --primary: 84 94% 55%;
-    --primary-foreground: 240 10% 3.9%;
-    --secondary: 240 3.7% 15.9%;
-    --secondary-foreground: 0 0% 98%;
-    --muted: 240 3.7% 15.9%;
-    --muted-foreground: 240 5% 64.9%;
-    --accent: 240 3.7% 15.9%;
-    --accent-foreground: 0 0% 98%;
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 240 3.7% 15.9%;
-    --input: 240 3.7% 15.9%;
-    --ring: 84 94% 55%;
->>>>>>> 03b76d1a77f4a60a753e8e2ed6da9ac14d5ff511
     --radius: 0.5rem;
   }
 }

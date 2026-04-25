@@ -60,7 +60,7 @@ packages/
 # API
 cd apps/api
 pip install -r requirements.txt
-cp ../../.env.example .env   # fill in keys
+# Edit apps/api/.env and fill in any keys you have (file already exists, gitignored).
 uvicorn main:app --reload    # http://localhost:8000
 
 # Web

@@ -33,9 +33,7 @@ source .venv/bin/activate   # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
 cd ../..
 
-# Copy env template and fill in keys
-cp .env.example .env
-cp .env.example apps/api/.env
+# Fill in any keys you have in apps/api/.env (file already exists, gitignored).
 ```
 
 ## Run
