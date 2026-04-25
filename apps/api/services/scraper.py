@@ -7,7 +7,7 @@ import re
 from collections import Counter
 from pathlib import Path
 
-from models.schemas import NetworkProfile, RawAudience, RawAudiencePost
+from ..models.schemas import NetworkProfile, RawAudience, RawAudiencePost
 
 logger = logging.getLogger(__name__)
 
@@ -43,7 +43,8 @@ def _load_fixture(platform: str) -> RawAudience:
     if not fixture_path.exists():
         fixture_path = FIXTURES_DIR / "sample_audience.json"
     logger.warning("Loading %s audience from fixture: %s", platform, fixture_path)
-    return RawAudience(**json.loads(fixture_path.read_text()))
+    with open(fixture_path, encoding="utf-8") as f:
+        return RawAudience(**json.load(f))
 
 
 def _cache_path(handle: str, platform: str) -> Path:
@@ -53,7 +54,8 @@ def _cache_path(handle: str, platform: str) -> Path:
 def _save_cache(handle: str, platform: str, data: dict) -> None:
     path = _cache_path(handle, platform)
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(data, indent=2, default=str))
+    with open(path, "w", encoding="utf-8") as f:
+        json.dump(data, f, indent=2, default=str)
     logger.info("Cached raw %s scrape to %s", platform, path)
 
 
@@ -68,7 +70,8 @@ async def scrape(handle: str, platform: str = "instagram") -> RawAudience:
     cached = _cache_path(handle, platform)
     if cached.exists():
         logger.info("Loading cached %s scrape for @%s", platform, handle)
-        return _build_audience(json.loads(cached.read_text()), platform)
+        with open(cached, encoding="utf-8") as f:
+            return _build_audience(json.load(f), platform)
 
     try:
         if platform == "instagram":

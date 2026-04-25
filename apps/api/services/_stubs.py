@@ -27,14 +27,16 @@ def _sleep() -> float:
 class _Scraper:
     async def scrape(self, handle: str) -> RawAudience:
         await asyncio.sleep(_sleep())
-        data = json.loads((_FIXTURES / "sample_audience.json").read_text())
+        with open(_FIXTURES / "sample_audience.json", encoding="utf-8") as f:
+            data = json.load(f)
         return RawAudience.model_validate(data)
 
 
 class _PersonaSvc:
     async def synthesize(self, product_idea: str, audience: RawAudience) -> Persona:
         await asyncio.sleep(_sleep())
-        data = json.loads((_FIXTURES / "sample_persona.json").read_text())
+        with open(_FIXTURES / "sample_persona.json", encoding="utf-8") as f:
+            data = json.load(f)
         return Persona.model_validate(data)
 
 

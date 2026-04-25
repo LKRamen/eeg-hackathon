@@ -8,8 +8,8 @@ from typing import Any
 import numpy as np
 from openai import AsyncOpenAI
 
-from config import get_settings
-from models.schemas import AgencyMatch, Persona
+from ..config import get_settings
+from ..models.schemas import AgencyMatch, Persona
 
 logger = logging.getLogger(__name__)
 
@@ -21,7 +21,8 @@ _agency_cache: dict[str, tuple[dict, np.ndarray]] = {}
 
 def _load_agencies() -> list[dict]:
     path = FIXTURES_DIR / "agencies.json"
-    return json.loads(path.read_text())
+    with open(path, encoding="utf-8") as f:
+        return json.load(f)
 
 
 def _agency_text(agency: dict) -> str:

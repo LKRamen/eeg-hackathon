@@ -5,8 +5,8 @@ import logging
 
 from openai import AsyncOpenAI
 
-from config import get_settings
-from models.schemas import NetworkInsights, Persona, RawAudience
+from ..config import get_settings
+from ..models.schemas import NetworkInsights, Persona, RawAudience
 
 logger = logging.getLogger(__name__)
 
