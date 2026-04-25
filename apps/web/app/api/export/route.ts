@@ -58,7 +58,6 @@ interface Persona {
   interests: string[];
   purchase_signals: string[];
   aesthetic_keywords: string[];
-  purchase_signals: string[];
   voice_traits: string[];
   summary: string;
 }
