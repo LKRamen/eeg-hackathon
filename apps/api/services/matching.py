@@ -6,10 +6,12 @@ import re
 from pathlib import Path
 from typing import Any
 
-from openai import AsyncOpenAI
+from anthropic import AsyncAnthropic
 
 from ..config import get_settings
 from ..models.schemas import AgencyMatch, Persona
+
+MODEL = "claude-3-5-sonnet-20241022"
 
 logger = logging.getLogger(__name__)
 
@@ -94,7 +96,7 @@ def _ensure_agency_cache() -> None:
 
 
 async def _why_line(
-    client: AsyncOpenAI,
+    client: AsyncAnthropic,
     agency: dict[str, Any],
     persona: Persona,
     overlap_tags: set[str],
@@ -106,18 +108,18 @@ async def _why_line(
         f"CUSTOMER: {persona.summary}\n"
         f"AESTHETIC OVERLAP: {overlap_str}"
     )
-    resp = await client.chat.completions.create(
-        model="gpt-4o",
-        messages=[{"role": "user", "content": prompt}],
-        temperature=0.4,
+    resp = await client.messages.create(
+        model=MODEL,
         max_tokens=60,
+        temperature=0.4,
+        messages=[{"role": "user", "content": prompt}],
     )
-    return resp.choices[0].message.content.strip().rstrip(".")
+    return resp.content[0].text.strip().rstrip(".")
 
 
 async def match(persona: Persona) -> list[AgencyMatch]:
     settings = get_settings()
-    client = AsyncOpenAI(api_key=settings.openai_api_key)
+    client = AsyncAnthropic(api_key=settings.anthropic_api_key)
 
     _ensure_agency_cache()
 

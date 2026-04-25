@@ -19,6 +19,7 @@ class Settings(BaseSettings):
     """
 
     openai_api_key: str = Field(default="", alias="OPENAI_API_KEY")
+    anthropic_api_key: str = Field(default="", alias="ANTHROPIC_API_KEY")
     hf_token: str = Field(default="", alias="HF_TOKEN")
     supabase_url: str = Field(default="", alias="SUPABASE_URL")
     supabase_service_key: str = Field(default="", alias="SUPABASE_SERVICE_KEY")
