@@ -5,7 +5,7 @@ import os
 
 from ..models.schemas import BrandResult
 from . import jobs_db
-from ._stubs import brand, export  # always-stubbed today; swapped in Phase 3
+from ._stubs import export  # phase 3d: swap to Node /api/export
 
 log = logging.getLogger(__name__)
 
@@ -19,11 +19,13 @@ if USE_STUBS:
     from ._stubs import scraper as scraper_svc
     from ._stubs import persona_svc
     from ._stubs import matching as matching_svc
+    from ._stubs import brand
     log.info("USE_STUBS=true — pipeline using all-stub services")
 else:
     from . import scraper as scraper_svc
     from . import persona as persona_svc
     from . import matching as matching_svc
+    from . import brand  # real assemble() — palette/typo/voice via GPT-4o; images still stubbed
 
 
 async def run_pipeline(job_id: str) -> None:
@@ -37,7 +39,7 @@ async def run_pipeline(job_id: str) -> None:
         persona = await persona_svc.synthesize(job.product_idea, audience)
 
         jobs_db.update_status(job_id, "generating")
-        brand_assets = await brand.assemble(persona, job.product_idea)
+        brand_assets = await brand.assemble(persona, job.product_idea, job_id)
 
         jobs_db.update_status(job_id, "matching")
         matches = await matching_svc.match(persona)

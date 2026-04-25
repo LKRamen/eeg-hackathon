@@ -41,7 +41,7 @@ class _PersonaSvc:
 
 
 class _Brand:
-    async def assemble(self, persona: Persona, product_idea: str) -> BrandAssets:
+    async def assemble(self, persona: Persona, product_idea: str, job_id: str = "") -> BrandAssets:
         await asyncio.sleep(_sleep())
         return BrandAssets(
             brand_name="Vøid",
