@@ -31,6 +31,107 @@ const STATUS_IDX: Record<JobStatus, number> = {
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
+// ─── Loading Screen ───────────────────────────────────────────────────────────
+
+const LOADING_COPY: Partial<Record<JobStatus, { heading: string; subtitle: string; pct: number }>> = {
+  scraping:     { heading: "Scraping your audience…",    subtitle: "Analyzing followers, hashtags, and engagement patterns", pct: 16 },
+  synthesizing: { heading: "Building your persona…",     subtitle: "Mapping psychographics and purchase signals",            pct: 32 },
+  generating:   { heading: "Designing your brand…",      subtitle: "Creating logo, palette, typography, and voice",          pct: 50 },
+  matching:     { heading: "Finding your agencies…",     subtitle: "Scoring agencies against your brand DNA",                pct: 66 },
+  exporting:    { heading: "Packaging your kit…",        subtitle: "Compiling your brand guide PDF",                         pct: 83 },
+};
+
+function LoadingScreen({ status }: { status: JobStatus }) {
+  const copy = LOADING_COPY[status] ?? { heading: "Starting up…", subtitle: "", pct: 5 };
+
+  return (
+    <div
+      style={{
+        minHeight: "calc(100vh - 120px)",
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        justifyContent: "center",
+        gap: 32,
+      }}
+    >
+      <style>{`
+        @keyframes bk-pulse {
+          0%, 100% { opacity: 0.2; transform: scale(0.85); }
+          50%       { opacity: 1;   transform: scale(1.15); }
+        }
+        .bk-dot { animation: bk-pulse 1.4s ease-in-out infinite; }
+        .bk-dot:nth-child(2) { animation-delay: 0.2s; }
+        .bk-dot:nth-child(3) { animation-delay: 0.4s; }
+        @keyframes bk-bar { from { width: 0% } }
+        .bk-progress-fill { animation: bk-bar 0.6s cubic-bezier(0.22,1,0.36,1) both; }
+      `}</style>
+
+      {/* Heading */}
+      <div style={{ textAlign: "center", maxWidth: 540 }}>
+        <h1
+          style={{
+            fontSize: "clamp(1.75rem, 4vw, 2.75rem)",
+            fontWeight: 700,
+            letterSpacing: "-0.02em",
+            color: "#fff",
+            margin: 0,
+            lineHeight: 1.15,
+          }}
+        >
+          {copy.heading}
+        </h1>
+        <p
+          style={{
+            marginTop: 12,
+            fontSize: 14,
+            color: "rgba(255,255,255,0.4)",
+            letterSpacing: "0.03em",
+          }}
+        >
+          {copy.subtitle}
+        </p>
+      </div>
+
+      {/* Progress bar */}
+      <div
+        style={{
+          width: "min(420px, 80vw)",
+          height: 3,
+          borderRadius: 99,
+          background: "rgba(255,255,255,0.08)",
+          overflow: "hidden",
+        }}
+      >
+        <div
+          key={status}
+          className="bk-progress-fill"
+          style={{
+            height: "100%",
+            width: `${copy.pct}%`,
+            borderRadius: 99,
+            background: "linear-gradient(90deg, #a78bfa, #7c3aed)",
+          }}
+        />
+      </div>
+
+      {/* Pulsing dots */}
+      <div style={{ display: "flex", gap: 8 }}>
+        {[0, 1, 2].map((i) => (
+          <div
+            key={i}
+            className="bk-dot"
+            style={{
+              width: 7, height: 7, borderRadius: "50%",
+              background: "#a78bfa",
+            }}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
 // ─── Timeline ─────────────────────────────────────────────────────────────────
 
 function Timeline({ status }: { status: JobStatus }) {
@@ -156,7 +257,7 @@ export default function JobPage({ params }: { params: { id: string } }) {
 
         {/* In-progress state */}
         {job.status !== "done" && job.status !== "error" && (
-          <p className="text-center text-sm text-zinc-600">Working on it…</p>
+          <LoadingScreen status={job.status} />
         )}
 
         {/* Results (Preview Mode) */}
