@@ -155,10 +155,22 @@ class BrandAssets(BaseModel):
     social_kit: list[SocialAsset] = Field(default_factory=list)
 
 
+class InfluencerMatch(BaseModel):
+    handle: str                  # e.g. "@sustainablestyle" or archetype name
+    platform: str                # "instagram" | "tiktok" | "youtube"
+    niche: str                   # e.g. "sustainable streetwear"
+    follower_tier: str           # "nano (1K–10K)" | "micro (10K–100K)" | "macro (100K–1M)"
+    why: str                     # 1-sentence match reason tied to persona
+    content_style: str           # e.g. "aesthetic flat lays, GRWM hauls"
+    estimated_reach: str         # e.g. "~45K avg impressions/post"
+    collab_angle: str            # e.g. "gifting + affiliate link"
+
+
 class BrandResult(BaseModel):
     persona: Persona
     brand_assets: BrandAssets
     agency_matches: list[AgencyMatch]
+    influencer_matches: list[InfluencerMatch] = Field(default_factory=list)
     brand_guide_pdf_url: str
     # Additive fields (Person 4 — every optional artifact).
     pitch_deck_pdf_url: Optional[str] = None

@@ -52,7 +52,14 @@ async def run_pipeline(job_id: str) -> None:
         brand_assets = await brand.assemble(persona, job.product_idea, job_id)
 
         jobs_db.update_status(job_id, "matching")
-        matches = await matching_svc.match(persona)
+        from . import influencers as influencer_svc
+        import asyncio as _asyncio
+        matches, influencer_matches = await _asyncio.gather(
+            matching_svc.match(persona),
+            influencer_svc.find_influencers(
+                persona, job.product_idea, brand_assets.brand_name
+            ),
+        )
 
         jobs_db.update_status(job_id, "exporting")
         pdf_url = await export.build_pdf(brand_assets, persona)
@@ -64,6 +71,7 @@ async def run_pipeline(job_id: str) -> None:
             persona=persona,
             brand_assets=brand_assets,
             agency_matches=matches,
+            influencer_matches=influencer_matches,
             brand_guide_pdf_url=pdf_url,
             canva_edit_urls=canva_edit_urls,
             canva_folder_url=canva_folder_url,

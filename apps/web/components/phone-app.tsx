@@ -18,6 +18,11 @@ interface LogoVariants {
   primary: string; mono_dark: string; mono_light: string;
   on_brand: string; avatar: string;
 }
+interface InfluencerMatch {
+  handle: string; platform: string; niche: string;
+  follower_tier: string; why: string; content_style: string;
+  estimated_reach: string; collab_angle: string;
+}
 interface BrandResult {
   persona: {
     name: string; age_range: string; summary: string;
@@ -33,6 +38,7 @@ interface BrandResult {
     mockups: Mockup[];
   };
   agency_matches: AgencyMatch[];
+  influencer_matches?: InfluencerMatch[];
   canva_edit_urls?: Record<string, string> | null;
   canva_folder_url?: string | null;
 }
@@ -479,10 +485,54 @@ function ResultsScreen({ result, onReset }: { result: BrandResult; onReset: () =
           </div>
         </div>
 
-        {/* 06 — canva templates */}
+        {/* 07 — influencer matches */}
+        {result.influencer_matches && result.influencer_matches.length > 0 && (
+          <div style={{ padding: '0 22px', marginBottom: 28 }}>
+            <SectionLabel>07 · creator matches</SectionLabel>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {result.influencer_matches.map((inf, i) => {
+                const platformIcon: Record<string, string> = { instagram: '◎', tiktok: '♪', youtube: '▶' };
+                const tierColor: Record<string, string> = {
+                  'nano (1K–10K)': 'rgba(120,220,120,0.8)',
+                  'micro (10K–100K)': 'rgba(100,180,255,0.8)',
+                  'macro (100K–1M)': 'rgba(210,160,255,0.8)',
+                };
+                const tc = tierColor[inf.follower_tier] ?? 'rgba(240,238,244,0.4)';
+                return (
+                  <div key={i} style={{ background: 'rgba(255,255,255,0.025)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 14, padding: '12px 14px' }}>
+                    {/* header row */}
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <span style={{ fontSize: 12, fontWeight: 800, color: accentColor }}>{platformIcon[inf.platform] ?? '◎'}</span>
+                        <span style={{ fontSize: 13, fontWeight: 700, color: '#f0eef4', letterSpacing: '-0.2px' }}>{inf.handle}</span>
+                      </div>
+                      <span style={{ fontSize: 9, fontWeight: 600, color: tc, background: tc.replace('0.8)', '0.1)'), border: `1px solid ${tc.replace('0.8)', '0.2)')}`, borderRadius: 6, padding: '2px 7px' }}>
+                        {inf.follower_tier.split(' ')[0]}
+                      </span>
+                    </div>
+                    {/* niche + reach */}
+                    <div style={{ display: 'flex', gap: 6, marginBottom: 7 }}>
+                      <span style={{ fontSize: 9, color: 'rgba(240,238,244,0.4)', background: 'rgba(255,255,255,0.05)', borderRadius: 5, padding: '2px 7px' }}>{inf.niche}</span>
+                      <span style={{ fontSize: 9, color: 'rgba(240,238,244,0.35)', padding: '2px 0' }}>{inf.estimated_reach}</span>
+                    </div>
+                    {/* why */}
+                    <p style={{ fontSize: 11, color: 'rgba(240,238,244,0.65)', lineHeight: 1.5, marginBottom: 7 }}>{inf.why}</p>
+                    {/* content style + collab */}
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <p style={{ fontSize: 9.5, color: 'rgba(240,238,244,0.35)', fontStyle: 'italic' }}>{inf.content_style}</p>
+                      <span style={{ fontSize: 9, fontWeight: 600, color: accentColor, background: `${accentColor}18`, borderRadius: 5, padding: '2px 7px' }}>{inf.collab_angle}</span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* 08 — canva templates */}
         {(result.canva_edit_urls || result.canva_folder_url) && (
           <div style={{ padding: '0 22px', marginBottom: 28 }}>
-            <SectionLabel>07 · canva templates</SectionLabel>
+            <SectionLabel>08 · canva templates</SectionLabel>
             <div style={{ background: 'rgba(255,255,255,0.025)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 14, padding: '14px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
                 <div style={{ width: 32, height: 32, borderRadius: 8, background: 'rgba(124,77,255,0.15)', border: '1px solid rgba(124,77,255,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
