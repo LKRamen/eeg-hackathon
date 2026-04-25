@@ -93,68 +93,170 @@ async def _cf_generate(
 _ASSETS_DIR = Path(__file__).parent.parent / "assets"
 _FONTS_DIR = _ASSETS_DIR / "fonts"
 
-_MOCKUP_CONTEXT_RULES: list[tuple[tuple[str, ...], str, str]] = [
-    (("brutalist", "industrial", "raw"),    "charcoal grey", "raw concrete slab"),
-    (("organic", "natural", "botanical"),   "natural cream", "oak wood plank"),
-    (("minimal", "clean", "scandinavian"),  "off-white",     "white-washed pine"),
-    (("streetwear", "urban", "grunge"),     "washed black",  "asphalt pavement"),
-    (("coastal", "surf", "maritime"),       "salt white",    "weathered driftwood"),
-    (("luxury", "premium", "editorial"),    "ivory",         "polished marble slab"),
-    (("maximalist", "bold", "vibrant"),     "chalk white",   "terrazzo tile"),
-    (("retro", "vintage", "nostalgic"),     "vintage sand",  "worn leather surface"),
-]
-_MOCKUP_CONTEXT_DEFAULT = {"tee_color": "white", "surface": "light grey seamless paper"}
-
-
 def _hex_to_rgb(hex_color: str) -> tuple[int, int, int]:
     h = hex_color.lstrip("#")
     return int(h[0:2], 16), int(h[2:4], 16), int(h[4:6], 16)
 
 
-def _aesthetic_context(persona: Persona) -> dict:
-    """Map persona aesthetic keywords → mockup surface context. Never raises."""
-    try:
-        keywords: list[str] = []
-        raw = getattr(persona, "aesthetic_keywords", None)
-        if raw:
-            keywords = [k.lower() for k in raw]
-        if not keywords:
-            blob = " ".join(filter(None, [
-                str(getattr(persona, "description", "") or ""),
-                str(getattr(persona, "brief", "") or ""),
-            ])).lower()
-            for triggers, tee_color, surface in _MOCKUP_CONTEXT_RULES:
-                if any(t in blob for t in triggers):
-                    return {"tee_color": tee_color, "surface": surface}
-            return dict(_MOCKUP_CONTEXT_DEFAULT)
-        for triggers, tee_color, surface in _MOCKUP_CONTEXT_RULES:
-            if any(t in kw for t in triggers for kw in keywords):
-                return {"tee_color": tee_color, "surface": surface}
-        return dict(_MOCKUP_CONTEXT_DEFAULT)
-    except Exception:
-        return dict(_MOCKUP_CONTEXT_DEFAULT)
+# ---------------------------------------------------------------------------
+# Rich aesthetic context table — drives campaign-quality mockup prompts
+# Keys are comma-separated keyword groups matched against persona data.
+# ---------------------------------------------------------------------------
+
+_AESTHETIC_CONTEXT_RICH: dict[str, dict] = {
+    "brutalist, industrial, raw": {
+        "tee_color":      "acid-washed charcoal",
+        "surface":        "cracked raw concrete floor",
+        "lighting":       "harsh directional industrial lamp casting long dramatic shadows",
+        "mood_direction": "confrontational, high-contrast, aggressive energy",
+        "camera_detail":  "shot on Mamiya RZ67, f/2.8, grain pushed",
+        "set_design":     "spray paint cans, chain-link wire, exposed rebar scattered in frame",
+    },
+    "organic, natural, botanical": {
+        "tee_color":      "sun-faded earth clay",
+        "surface":        "mossy stone slab surrounded by overgrown ferns",
+        "lighting":       "golden hour shaft of light through forest canopy",
+        "mood_direction": "sensory, alive, earthy and rooted",
+        "camera_detail":  "shot on Contax 645, soft natural diffusion",
+        "set_design":     "pressed wildflowers, raw linen cloth, terracotta shards",
+    },
+    "streetwear, urban, grunge": {
+        "tee_color":      "bleach-splattered black",
+        "surface":        "rain-slicked Manhattan sidewalk at dusk",
+        "lighting":       "sodium vapor streetlights, neon sign reflections",
+        "mood_direction": "chaotic, energized, NYC midnight energy",
+        "camera_detail":  "shot on Canon 1DX with 35mm, motion blur in background",
+        "set_design":     "crushed bodega cups, skateboard deck, yellow cab blur",
+    },
+    "coastal, surf, maritime": {
+        "tee_color":      "sun-bleached salt white",
+        "surface":        "wave-smoothed black basalt rock at water's edge",
+        "lighting":       "blinding Pacific noon sun with lens flare",
+        "mood_direction": "sun-drunk, salt-soaked, effortlessly alive",
+        "camera_detail":  "shot on Nikon F3, expired Kodak Portra 400",
+        "set_design":     "dried kelp, broken surfboard fin, sea glass",
+    },
+    "luxury, premium, editorial": {
+        "tee_color":      "heavyweight obsidian black",
+        "surface":        "hand-polished white Carrara marble slab",
+        "lighting":       "single overhead Arri softbox, shadow-less",
+        "mood_direction": "cold, commanding, museum-level gravitas",
+        "camera_detail":  "shot on Phase One XF IQ4, 80mm tilt-shift",
+        "set_design":     "single white orchid, black lacquer tray, cashmere fold",
+    },
+    "maximalist, bold, vibrant": {
+        "tee_color":      "saturated cobalt electric blue",
+        "surface":        "explosion of hand-dyed silk fabric, multi-color",
+        "lighting":       "ring flash at full power, colors blown out",
+        "mood_direction": "ecstatic, maximalist chaos, Warhol energy",
+        "camera_detail":  "shot on Hasselblad 500C, cross-processed film",
+        "set_design":     "confetti, paint-splattered canvas, neon prop signs",
+    },
+    "retro, vintage, nostalgic": {
+        "tee_color":      "washed-out mustard gold",
+        "surface":        "sun-damaged wood grain boardwalk plank",
+        "lighting":       "warm tungsten practical lamp, slight overexposure",
+        "mood_direction": "nostalgic ache, analog warmth, found footage feeling",
+        "camera_detail":  "shot on Olympus OM-1, Kodak Gold 200, light leaks",
+        "set_design":     "vintage band flyers, cassette tape, faded polaroids",
+    },
+    "botanical, floral, garden": {
+        "tee_color":      "moss green linen",
+        "surface":        "wild meadow grass, dew still on blades",
+        "lighting":       "overcast diffused British summer light",
+        "mood_direction": "tender, breathing, slow morning energy",
+        "camera_detail":  "shot on Leica M6, 50mm Summicron, open aperture",
+        "set_design":     "scattered seed pods, ceramic planter shards, dried lavender",
+    },
+}
+
+_AESTHETIC_CONTEXT_FALLBACK: dict = {
+    "tee_color":      "heavyweight white",
+    "surface":        "stark white seamless studio sweep",
+    "lighting":       "dramatic Rembrandt three-point setup with hard key light",
+    "mood_direction": "confident, iconic, brand hero shot energy",
+    "camera_detail":  "shot on Hasselblad H6D, 100mm, medium format sharpness",
+    "set_design":     "single rose petal, casting a long shadow",
+}
 
 
-def _build_base(persona: Persona) -> str:
-    """Shared prompt tail for all mockup types. Never raises."""
+def _aesthetic_context(persona: "Persona") -> dict:
+    """Return a rich creative context dict for campaign-quality mockup prompts.
+
+    Matches against persona.aesthetic_keywords, description, and brief.
+    Never raises — returns fallback dict on any error.
+    """
     try:
-        vibe = (
-            getattr(persona, "vibe", None)
-            or getattr(persona, "tone", None)
-            or ""
-        )
-        if vibe:
-            mood = vibe.strip().rstrip(".") + " mood."
-        else:
-            kw = getattr(persona, "aesthetic_keywords", None) or []
-            mood = (", ".join(kw[:2]).capitalize() + " mood.") if kw else "Considered mood."
+        kw_parts: list[str] = []
+        if getattr(persona, "aesthetic_keywords", None):
+            kw_parts.extend(persona.aesthetic_keywords)
+        if getattr(persona, "description", None):
+            kw_parts.append(persona.description)
+        if getattr(persona, "brief", None):
+            kw_parts.append(persona.brief)
+        kw_text = " ".join(kw_parts).lower()
+
+        for key_group, ctx in _AESTHETIC_CONTEXT_RICH.items():
+            triggers = [k.strip() for k in key_group.split(",")]
+            if any(t in kw_text for t in triggers):
+                return ctx.copy()
+
+        return _AESTHETIC_CONTEXT_FALLBACK.copy()
     except Exception:
-        mood = "Considered mood."
-    return (
-        f"{mood} "
-        f"Shot for an independent brand lookbook. "
-        f"Ultra-sharp. No text, no people, no background clutter. 8K."
+        return _AESTHETIC_CONTEXT_FALLBACK.copy()
+
+
+_VIBE_ENERGY_MAP: list[tuple[tuple[str, ...], str]] = [
+    (
+        ("hype", "energetic", "high-energy", "kinetic", "rebellious", "chaotic", "intense"),
+        "The image crackles with kinetic, rebellious energy.",
+    ),
+    (
+        ("calm", "considered", "slow", "intentional", "quiet", "understated"),
+        "The image breathes with slow, intentional presence.",
+    ),
+    (
+        ("playful", "fun", "joyful", "irreverent", "vibrant"),
+        "The image bursts with irreverent, joyful chaos.",
+    ),
+    (
+        ("luxury", "premium", "authority", "cold", "commanding", "effortless"),
+        "The image radiates cold, effortless authority.",
+    ),
+]
+
+
+def _build_base(persona: "Persona", product_idea: str = "") -> str:
+    """Build the creative tail that closes every mockup prompt.
+
+    Derives energy line from persona vibe/tone/voice_traits,
+    appends product reference if provided, always ends with quality tail.
+    """
+    vibe = ""
+    for attr in ("vibe", "tone"):
+        val = getattr(persona, attr, None)
+        if val:
+            vibe = str(val).lower()
+            break
+    if not vibe:
+        traits = getattr(persona, "voice_traits", None) or []
+        vibe = " ".join(traits[:2]).lower()
+
+    energy_line = "The image commands attention with unapologetic confidence."
+    for keywords, line in _VIBE_ENERGY_MAP:
+        if any(k in vibe for k in keywords):
+            energy_line = line
+            break
+
+    parts = [energy_line]
+    if product_idea:
+        parts.append(f"The brand exists in the world of {product_idea}.")
+    parts.append(
+        "Magazine editorial quality. Hyper-detailed fabric texture. Rich color grading. "
+        "No text overlaid. No people. No distracting background elements. "
+        "Shot for a global campaign launch. 8K resolution."
     )
+    return " ".join(parts)
 
 
 _FONT_CACHE: dict[str, Path] = {}
@@ -479,40 +581,62 @@ _MOCKUP_NEGATIVE = (
 
 def _mockup_prompt(label: _MockupLabel, persona: Persona, product_idea: str = "") -> tuple[str, int, int]:
     ctx = _aesthetic_context(persona)
-    base = _build_base(persona)
+    base = _build_base(persona, product_idea=product_idea)
 
     if label == "tee":
-        tee_prompt = (
-            f"Editorial product photograph of a {ctx['tee_color']} cotton crewneck t-shirt "
-            f"with a small minimalist abstract emblem at left chest. "
-            f"Flat lay on {ctx['surface']}. Natural daylight. "
+        prompt = (
+            f"World-class editorial campaign photograph of a {ctx['tee_color']} heavyweight "
+            f"cotton crewneck t-shirt bearing a bold graphic emblem at center chest. "
+            f"The shirt is the hero of the image — styled, intentional, art-directed. "
+            f"Set: {ctx['set_design']}. "
+            f"Surface: {ctx['surface']}. "
+            f"Lighting: {ctx['lighting']}. "
+            f"Mood: {ctx['mood_direction']}. "
+            f"Camera: {ctx['camera_detail']}. "
             + base
         )
-        return tee_prompt, 1024, 1024
+        return prompt, 1024, 1024
 
     if label == "tote":
-        tote_prompt = (
-            f"Editorial product photograph of a premium canvas tote bag hanging on a {ctx['surface']}. "
-            f"Small minimalist abstract emblem on front panel. "
-            f"Art-directed still life. Natural daylight. "
+        prompt = (
+            f"World-class editorial campaign photograph of a structured canvas tote bag "
+            f"with a bold graphic emblem printed on the front panel. "
+            f"The bag dominates the frame — intentional, art-directed, campaign-ready. "
+            f"Set: {ctx['set_design']}. "
+            f"Surface: {ctx['surface']}. "
+            f"Lighting: {ctx['lighting']}. "
+            f"Mood: {ctx['mood_direction']}. "
+            f"Camera: {ctx['camera_detail']}. "
             + base
         )
-        return tote_prompt, 1024, 1024
+        return prompt, 1024, 1024
 
     if label == "hat":
-        return (
-            f"Editorial product photo of a structured 6-panel {ctx['tee_color']} cap, "
-            f"small embroidered emblem on front. "
-            f"Three-quarter angle on {ctx['surface']}. Natural daylight. "
+        prompt = (
+            f"World-class editorial campaign photograph of a structured 6-panel cap "
+            f"in {ctx['tee_color']} with a bold embroidered emblem on the front panel. "
+            f"Three-quarter angle. The cap is the hero of the image. "
+            f"Set: {ctx['set_design']}. "
+            f"Surface: {ctx['surface']}. "
+            f"Lighting: {ctx['lighting']}. "
+            f"Mood: {ctx['mood_direction']}. "
+            f"Camera: {ctx['camera_detail']}. "
             + base
-        ), 1024, 1024
+        )
+        return prompt, 1024, 1024
 
     # sticker / default
-    return (
-        f"Top-down editorial photograph of die-cut vinyl stickers on {ctx['surface']}. "
-        f"Abstract minimalist shapes, glossy finish. "
+    prompt = (
+        f"Top-down editorial campaign photograph of die-cut vinyl stickers "
+        f"scattered across {ctx['surface']}. "
+        f"Bold abstract shapes, glossy finish, high color saturation. "
+        f"Set: {ctx['set_design']}. "
+        f"Lighting: {ctx['lighting']}. "
+        f"Mood: {ctx['mood_direction']}. "
+        f"Camera: {ctx['camera_detail']}. "
         + base
-    ), 1024, 1024
+    )
+    return prompt, 1024, 1024
 
 
 async def _generate_mockup_cf(
