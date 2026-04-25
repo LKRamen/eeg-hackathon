@@ -12,6 +12,8 @@
   "dependencies": {
     "@halo/types": "workspace:*",
     "@radix-ui/react-slot": "^1.1.0",
+    "@react-three/drei": "^9.122.0",
+    "@react-three/fiber": "^8.18.0",
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.1.1",
     "konva": "^9.3.16",
@@ -24,7 +26,8 @@
     "sharp": "^0.33.5",
     "swr": "^2.2.5",
     "tailwind-merge": "^2.5.4",
-    "tailwindcss-animate": "^1.0.7"
+    "tailwindcss-animate": "^1.0.7",
+    "three": "^0.184.0"
   },
   "devDependencies": {
     "@types/node": "^22.7.5",

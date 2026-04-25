@@ -3,8 +3,8 @@ from __future__ import annotations
 import logging
 
 from ..models.schemas import BrandResult
-from . import jobs_db, scraper as scraper_svc
-from ._stubs import brand, export, matching, persona_svc
+from . import jobs_db, scraper as scraper_svc, persona as persona_svc, matching as matching_svc
+from ._stubs import brand, export
 
 log = logging.getLogger(__name__)
 
@@ -23,7 +23,7 @@ async def run_pipeline(job_id: str) -> None:
         brand_assets = await brand.assemble(persona, job.product_idea)
 
         jobs_db.update_status(job_id, "matching")
-        matches = await matching.match(persona)
+        matches = await matching_svc.match(persona)
 
         jobs_db.update_status(job_id, "exporting")
         pdf_url = await export.build_pdf(brand_assets, persona)
