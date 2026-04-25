@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import urllib.parse
 
-from apps.api.models.schemas import (
+from ..models.schemas import (
     LogoVariants,
     Mockup,
     Persona,

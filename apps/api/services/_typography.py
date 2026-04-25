@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from apps.api.models.schemas import FontSpec, Persona, Typography
+from ..models.schemas import FontSpec, Persona, Typography
 
 from ._openai_client import call_json_mode, get_openai_client
 

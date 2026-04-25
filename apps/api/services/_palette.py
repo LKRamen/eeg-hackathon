@@ -4,7 +4,7 @@ import logging
 import re
 from typing import Any
 
-from apps.api.models.schemas import Color, PaletteRole, Persona
+from ..models.schemas import Color, PaletteRole, Persona
 
 from ._openai_client import call_json_mode, get_openai_client
 
