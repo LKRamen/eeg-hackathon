@@ -1,6 +1,6 @@
 # Halo — Prompt-to-Brand Engine
 
-Turn a creator's social handle + product idea into a complete brand identity: logo, style guide, mockups, social kit, and agency matches. Built for a 24–36 hr hackathon.
+Turn a creator's social handle + product idea into a complete brand identity: logo, style guide, mockups, and social kit. Built for a 24–36 hr hackathon.
 
 ## Architecture
 
@@ -13,8 +13,7 @@ FastAPI (Render / Railway)  →  Supabase (Postgres + Storage)
   ├─→ Apify                      Instagram profile scraper
   ├─→ OpenAI GPT-4o              persona synthesis, brand copy, clustering (zero-shot)
   ├─→ OpenAI embeddings          audience interest clustering (embedding similarity mode)
-  ├─→ Stable Diffusion (SDXL)    logo generation + lifestyle mockup images via Replicate
-  └─→ Canva Connect API          social post templates, mockup autofill
+  └─→ Stable Diffusion (SDXL)    logo generation + lifestyle mockup images via Replicate
 ```
 
 Frontend polls `GET /jobs/{id}` every 2 s — no WebSockets.
@@ -35,8 +34,7 @@ apps/
       storage.py     Supabase storage helpers (upload_image, upload_url, upload_pil)
       scraper.py     Apify Instagram scraper (Task 4)
       persona.py     GPT-4o persona synthesis (Task 5)
-      canva.py       Canva Connect API client
-      images.py      Visual generation — logos (Replicate), variants (Pillow), social (Canva)
+      images.py      Visual generation — logos (Replicate), variants (Pillow), social (SD/Pillow)
       brand.py       Palette, fonts, voice, brand name, assembly orchestrator (Task 7)
       matching.py    Cosine similarity agency matching (Task 8)
       export.py      WeasyPrint PDF brand guide (Task 9)
@@ -76,16 +74,14 @@ pnpm dev                     # http://localhost:3000
 | `OPENAI_API_KEY` | Persona synthesis, palette, voice, brand names, embeddings |
 | `CF_ACCOUNT_ID` | Cloudflare account ID — image generation via Workers AI |
 | `CF_API_TOKEN` | Cloudflare API token — image generation via Workers AI |
-| `REPLICATE_API_TOKEN` | Replicate API token (unused by default; reserved) |
-| `CANVA_CLIENT_ID` | Canva Connect API OAuth client ID |
-| `CANVA_CLIENT_SECRET` | Canva Connect API OAuth client secret |
-| `CANVA_SOCIAL_TEMPLATE_IDS` | Comma-separated Canva brand template IDs for social posts |
-| `CANVA_MOCKUP_TEMPLATE_IDS` | Comma-separated Canva brand template IDs for mockups |
+| `REPLICATE_API_TOKEN` | Replicate API token — Stable Diffusion image generation |
 | `APIFY_TOKEN` | Instagram profile scraper |
 | `SUPABASE_URL` | Supabase project URL |
 | `SUPABASE_SERVICE_KEY` | Supabase service role key (bypasses RLS) |
 | `CACHE_MODE` | `true` → serve cached result for DEMO_HANDLE |
 | `DEMO_HANDLE` | Instagram handle to serve from cache |
+
+> **Removed**: `CANVA_CLIENT_ID`, `CANVA_CLIENT_SECRET`, `CANVA_SOCIAL_TEMPLATE_IDS`, `CANVA_MOCKUP_TEMPLATE_IDS` — Canva integration has been fully dropped.
 
 ## Key contracts (Person 3 ↔ Person 4)
 
@@ -107,14 +103,7 @@ logo_set, mockups, social = await asyncio.gather(
 
 Person 4 must generate `palette` (and thus `brand_color_hex`) BEFORE calling Person 3's logo set.
 
-## Canva API overview
-
-The Canva Connect API uses **client credentials OAuth** — no user login required for server-side generation.
-
-- Token endpoint: `POST https://api.canva.com/rest/v1/oauth/token`
-- Auth header: `Basic base64(CLIENT_ID:CLIENT_SECRET)`
-- Tokens expire after 1 hour; `CanvaClient` refreshes automatically.
-- Social post autofill requires brand templates pre-created in Canva with named data fields. Template IDs are stored in `CANVA_SOCIAL_TEMPLATE_IDS`. If unset, Pillow composition is used as fallback.
+> **Note**: All mockup and social post generation is now done entirely via Stable Diffusion (Replicate) and Pillow composition. There is no Canva fallback — it has been removed.
 
 ## Supabase storage buckets
 
@@ -131,8 +120,8 @@ Paths follow `jobs/{job_id}/{filename}`.
 |---|---|---|
 | Logo primary | Stable Diffusion SDXL (Replicate) | ~8 s, configurable via `SD_MODEL` |
 | Logo variants (mono/avatar) | Pillow image processing | Derived from primary — consistent, free |
-| Mockups (tee, tote) | Canva autofill → export (or SD fallback) | Canva gives better photo-realism |
-| Social posts (lifestyle) | SD SDXL or Canva autofill | Atmospheric 1:1 or 9:16 |
+| Mockups (tee, tote) | SD SDXL (Replicate) | Photo-realistic product mockups |
+| Social posts (lifestyle) | SD SDXL | Atmospheric 1:1 or 9:16 |
 | Social posts (hero, quote) | Pillow composition | Logo + brand color + tagline — reliable text |
 | In-browser preview | Konva.js (`MockupCanvas`) | Drag, resize, transform; exports 300dpi PNG |
 | Brand guide PDF | Puppeteer → A4, 300dpi | Via `POST /api/export` route in Next.js |
@@ -170,6 +159,47 @@ Puppeteer requires Chrome; works out of the box on Railway/Render with `puppetee
 - **Embedding similarity** (`use_embeddings=True`): embeds the audience query vs. 14 predefined cluster descriptions using `text-embedding-3-small`, then cosine-ranks.
 
 Automatically falls back to the other mode if one fails.
+
+## Frontend: Brand Assets section
+
+The results page (`apps/web/app/results/[id]/page.tsx` or equivalent) renders a **Brand Assets** section above "Social Copy". This section is populated entirely from `job.result` — no separate API calls.
+
+### Data sources
+
+| UI Section | Data path |
+|---|---|
+| Logo Suite | `job.result.brand_assets.logo_variants` → `{ primary, mono_dark, mono_light, on_brand }` |
+| Mockups | `job.result.brand_assets.mockups` → `[{ type: "tee" | "tote", url }]` |
+| Social Kit | `job.result.brand_assets.social_assets` → `[{ format, url }]` |
+| Brand palette | `job.result.brand_assets.palette` → `[{ hex, name }]` — drives all bg/accent colors |
+
+### Layout spec
+
+**Logo Suite** — horizontal row of 4 square tiles. `on_brand` is the hero (2×). Tile backgrounds:
+- `mono_light` → dark background (`#111`)
+- `mono_dark` → white background (`#fff`)
+- `on_brand` → brand primary hex from palette
+- `primary` → neutral light gray
+
+**Mockups** — two large edge-to-edge cells (`tee`, `tote`). `object-fit: cover`, no padding compression.
+
+**Social Kit** — bento grid of 5 assets. Story assets (9:16 ratio) render taller than post assets (1:1). Each cell: format badge (`IG Post` / `IG Story`) + download button. Download uses `fetch()` → blob → `<a download>` — not `window.open`.
+
+### Debug logging (mount only)
+
+```ts
+console.log("brand_assets", job.result.brand_assets);
+```
+
+### Placeholder policy
+
+If any field is `null` or missing, render a bordered placeholder with a short explanation (e.g. "Logo variants not yet generated"). Never render a broken empty section or throw.
+
+### Typography
+
+- Labels: `Space Grotesk`
+- Format badges: `Space Mono`
+- Generous whitespace between sections, fade-in on mount.
 
 ## Development inner loop
 

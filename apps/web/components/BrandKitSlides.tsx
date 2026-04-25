@@ -2,7 +2,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import type { BrandResult } from "@halo/types";
+import type { BrandResult, SocialAsset } from "@halo/types";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -197,7 +197,7 @@ function Essence({ brand, palette }: { brand: BrandResult["brand_assets"]; palet
             <div style={{ borderLeft: `2px solid ${t.accent}`, paddingLeft: 20, display: "flex", flexDirection: "column", gap: 10 }}>
               {examples.slice(0, 3).map((ex: string, i: number) => (
                 <p key={i} style={{ fontFamily: displayFont, fontSize: 18, color: t.fg + "cc", margin: 0, fontStyle: "italic" }}>
-                  "{ex}"
+                  &ldquo;{ex}&rdquo;
                 </p>
               ))}
             </div>
@@ -633,14 +633,53 @@ function ProductMockups({ brand, palette }: { brand: BrandResult["brand_assets"]
 
 // ─── Panel 08: Editorial Photography ──────────────────────────────────────────
 
+function BentoCell({ asset, col, row, fallbackGrad }: {
+  asset: SocialAsset | undefined;
+  col: string;
+  row: string;
+  fallbackGrad: string;
+}) {
+  const url = fixUrl(asset?.url);
+  return (
+    <div style={{ gridColumn: col, gridRow: row, position: "relative", overflow: "hidden", background: fallbackGrad }}>
+      {url ? (
+        <img
+          src={url}
+          alt={asset?.label ?? ""}
+          style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }}
+        />
+      ) : (
+        <div style={{ position: "absolute", inset: 0, background: fallbackGrad }} />
+      )}
+      {asset?.label && (
+        <div style={{ position: "absolute", bottom: 10, left: 10 }}>
+          <span style={{
+            fontFamily: "'Space Mono',monospace",
+            fontSize: 8,
+            letterSpacing: "0.15em",
+            textTransform: "uppercase",
+            color: "rgba(255,255,255,0.8)",
+            background: "rgba(0,0,0,0.45)",
+            backdropFilter: "blur(6px)",
+            padding: "3px 7px",
+            borderRadius: 3,
+          }}>
+            {asset.label.replace(/_/g, " ")}
+          </span>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function Editorial({ brand, palette }: { brand: BrandResult["brand_assets"]; palette: Palette }) {
   const t = getPanelTheme(7, palette);
-  const social = brand.social_kit ?? [];
-  const imgs = social.slice(0, 5).map((s: any) => ({ url: fixUrl(s.url), label: s.label ?? "" }));
+  const socialKit: SocialAsset[] = brand.social_kit ?? [];
   const sec = pc(palette, "secondary");
+  const panelBg = palette[0]?.hex ?? "#0a0a0a";
 
   return (
-    <section className="panel" style={{ background: t.bg }}>
+    <section className="panel" style={{ background: panelBg }}>
       <Chrome n={7} name={brand.brand_name} t={t} />
 
       <div style={{ height: "100%", display: "flex", flexDirection: "column", padding: "100px 6% 60px", gap: 24 }}>
@@ -660,36 +699,24 @@ function Editorial({ brand, palette }: { brand: BrandResult["brand_assets"]; pal
           </p>
         </div>
 
-        {/* Bento grid */}
-        <div style={{ flex: 1, display: "grid", gridTemplateColumns: "2fr 1fr 1fr", gridTemplateRows: "1fr 1fr", gap: 8 }}>
-          {/* Hero large */}
-          <div style={{ gridRow: "1/3", position: "relative", overflow: "hidden", background: sec + "44" }}>
-            {imgs[2]?.url ? (
-              <img src={imgs[2].url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-            ) : (
-              <div style={{ width: "100%", height: "100%", background: `linear-gradient(135deg, ${t.accent}22, ${sec}44)` }} />
-            )}
-            <div style={{ position: "absolute", bottom: 20, left: 20 }}>
-              <span style={{ fontFamily: "'Space Mono',monospace", fontSize: 9, letterSpacing: "0.2em", textTransform: "uppercase", color: "#ffffff88" }}>Hero</span>
-            </div>
-          </div>
+        {socialKit.length === 0 && (
+          <p style={{ fontFamily: "'Space Grotesk',sans-serif", fontSize: 13, color: "#ff4444", margin: 0 }}>
+            social_kit empty — check API response
+          </p>
+        )}
 
-          {[imgs[0], imgs[1], imgs[3], imgs[4]].map((img, i) => (
-            <div key={i} style={{ position: "relative", overflow: "hidden", background: t.fg + "11" }}>
-              {img?.url ? (
-                <img src={img.url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-              ) : (
-                <div style={{ width: "100%", height: "100%", background: `linear-gradient(${45 + i * 30}deg, ${t.accent}11, ${sec}22)` }} />
-              )}
-              {img?.label && (
-                <div style={{ position: "absolute", bottom: 10, left: 10 }}>
-                  <span style={{ fontFamily: "'Space Mono',monospace", fontSize: 8, letterSpacing: "0.15em", textTransform: "uppercase", color: "#ffffff66" }}>
-                    {img.label.replace(/_/g, " ")}
-                  </span>
-                </div>
-              )}
-            </div>
-          ))}
+        <div style={{
+          flex: 1,
+          display: "grid",
+          gridTemplateColumns: "2fr 1fr 1fr",
+          gridTemplateRows: "1fr 1fr",
+          gap: 12,
+        }}>
+          <BentoCell asset={socialKit[2]} col="1" row="1/3" fallbackGrad={`linear-gradient(135deg, ${t.accent}22, ${sec}44)`} />
+          <BentoCell asset={socialKit[0]} col="2" row="1"   fallbackGrad={t.fg + "11"} />
+          <BentoCell asset={socialKit[1]} col="3" row="1"   fallbackGrad={t.fg + "0a"} />
+          <BentoCell asset={socialKit[3]} col="2" row="2"   fallbackGrad={t.fg + "11"} />
+          <BentoCell asset={socialKit[4]} col="3" row="2"   fallbackGrad={t.fg + "0a"} />
         </div>
       </div>
     </section>

@@ -56,6 +56,7 @@ interface Persona {
   location_archetype: string;
   psychographics: string[];
   interests: string[];
+  purchase_signals: string[];
   aesthetic_keywords: string[];
   voice_traits: string[];
   summary: string;
@@ -554,7 +555,7 @@ export async function POST(req: NextRequest) {
   try {
     if (type === "brand-guide") {
       const pdf = await exportBrandGuidePdf(result);
-      return new NextResponse(pdf, {
+      return new NextResponse(new Uint8Array(pdf), {
         status: 200,
         headers: {
           "Content-Type": "application/pdf",
@@ -565,7 +566,7 @@ export async function POST(req: NextRequest) {
 
     if (type === "logo-print") {
       const png = await exportLogoPrintReady(result.brand_assets.logo_url);
-      return new NextResponse(png, {
+      return new NextResponse(new Uint8Array(png), {
         status: 200,
         headers: {
           "Content-Type": "image/png",

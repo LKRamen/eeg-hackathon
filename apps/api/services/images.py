@@ -93,19 +93,17 @@ async def _cf_generate(
 _ASSETS_DIR = Path(__file__).parent.parent / "assets"
 _FONTS_DIR = _ASSETS_DIR / "fonts"
 
-_AESTHETIC_CONTEXT: dict[str, tuple[str, str]] = {
-    "brutalist": ("charcoal grey", "raw concrete slab"),
-    "concrete": ("charcoal grey", "raw concrete slab"),
-    "organic": ("natural cream", "oak wood plank"),
-    "natural": ("natural cream", "oak wood plank"),
-    "y2k": ("bright white", "iridescent acrylic"),
-    "chrome": ("bright white", "iridescent acrylic"),
-    "neon": ("jet black", "glossy black acrylic"),
-    "pastel": ("soft white", "blush pink linen"),
-    "editorial": ("heather grey", "white marble slab"),
-}
-
-_DEFAULT_TEE = ("heather grey", "linen backdrop")
+_MOCKUP_CONTEXT_RULES: list[tuple[tuple[str, ...], str, str]] = [
+    (("brutalist", "industrial", "raw"),    "charcoal grey", "raw concrete slab"),
+    (("organic", "natural", "botanical"),   "natural cream", "oak wood plank"),
+    (("minimal", "clean", "scandinavian"),  "off-white",     "white-washed pine"),
+    (("streetwear", "urban", "grunge"),     "washed black",  "asphalt pavement"),
+    (("coastal", "surf", "maritime"),       "salt white",    "weathered driftwood"),
+    (("luxury", "premium", "editorial"),    "ivory",         "polished marble slab"),
+    (("maximalist", "bold", "vibrant"),     "chalk white",   "terrazzo tile"),
+    (("retro", "vintage", "nostalgic"),     "vintage sand",  "worn leather surface"),
+]
+_MOCKUP_CONTEXT_DEFAULT = {"tee_color": "white", "surface": "light grey seamless paper"}
 
 
 def _hex_to_rgb(hex_color: str) -> tuple[int, int, int]:
@@ -113,12 +111,50 @@ def _hex_to_rgb(hex_color: str) -> tuple[int, int, int]:
     return int(h[0:2], 16), int(h[2:4], 16), int(h[4:6], 16)
 
 
-def _aesthetic_context(keywords: list[str]) -> tuple[str, str]:
-    for kw in keywords:
-        for key, val in _AESTHETIC_CONTEXT.items():
-            if key in kw.lower():
-                return val
-    return _DEFAULT_TEE
+def _aesthetic_context(persona: Persona) -> dict:
+    """Map persona aesthetic keywords → mockup surface context. Never raises."""
+    try:
+        keywords: list[str] = []
+        raw = getattr(persona, "aesthetic_keywords", None)
+        if raw:
+            keywords = [k.lower() for k in raw]
+        if not keywords:
+            blob = " ".join(filter(None, [
+                str(getattr(persona, "description", "") or ""),
+                str(getattr(persona, "brief", "") or ""),
+            ])).lower()
+            for triggers, tee_color, surface in _MOCKUP_CONTEXT_RULES:
+                if any(t in blob for t in triggers):
+                    return {"tee_color": tee_color, "surface": surface}
+            return dict(_MOCKUP_CONTEXT_DEFAULT)
+        for triggers, tee_color, surface in _MOCKUP_CONTEXT_RULES:
+            if any(t in kw for t in triggers for kw in keywords):
+                return {"tee_color": tee_color, "surface": surface}
+        return dict(_MOCKUP_CONTEXT_DEFAULT)
+    except Exception:
+        return dict(_MOCKUP_CONTEXT_DEFAULT)
+
+
+def _build_base(persona: Persona) -> str:
+    """Shared prompt tail for all mockup types. Never raises."""
+    try:
+        vibe = (
+            getattr(persona, "vibe", None)
+            or getattr(persona, "tone", None)
+            or ""
+        )
+        if vibe:
+            mood = vibe.strip().rstrip(".") + " mood."
+        else:
+            kw = getattr(persona, "aesthetic_keywords", None) or []
+            mood = (", ".join(kw[:2]).capitalize() + " mood.") if kw else "Considered mood."
+    except Exception:
+        mood = "Considered mood."
+    return (
+        f"{mood} "
+        f"Shot for an independent brand lookbook. "
+        f"Ultra-sharp. No text, no people, no background clutter. 8K."
+    )
 
 
 _FONT_CACHE: dict[str, Path] = {}
@@ -442,52 +478,40 @@ _MOCKUP_NEGATIVE = (
 
 
 def _mockup_prompt(label: _MockupLabel, persona: Persona, product_idea: str = "") -> tuple[str, int, int]:
-    b = _persona_brief(persona, product_idea)
-    kw = persona.aesthetic_keywords or ["minimal"]
-    mood_str  = ", ".join(b["mood"])
-    voice_str = " and ".join(b["voice_words"])
-    tee_color, surface = _aesthetic_context(kw)
-
-    # Derive hook and cap_color from aesthetic context
-    hook = surface  # e.g. "raw concrete slab", "oak wood plank"
-    cap_color = tee_color  # e.g. "charcoal grey", "natural cream"
-
-    base = (
-        f"The brand feels {mood_str}, {voice_str}, "
-        f"with a sense of product obsession, packaging exploration, and editorial photography. "
-        f"Premium creative studio aesthetic. Magazine quality, no people, no text, no logos. "
-        f"Visual world: {b['aesthetics_full']}. {b['scene']}."
-    )
+    ctx = _aesthetic_context(persona)
+    base = _build_base(persona)
 
     if label == "tee":
-        return (
-            f"Editorial product photograph of a {tee_color} cotton crewneck t-shirt "
+        tee_prompt = (
+            f"Editorial product photograph of a {ctx['tee_color']} cotton crewneck t-shirt "
             f"with a small minimalist abstract emblem at left chest. "
-            f"Flat lay on {surface}. Natural daylight. "
-            f"{base}"
-        ), 1024, 1024
+            f"Flat lay on {ctx['surface']}. Natural daylight. "
+            + base
+        )
+        return tee_prompt, 1024, 1024
 
     if label == "tote":
-        return (
-            f"Editorial product photograph of a premium canvas tote bag hanging on a {hook}. "
+        tote_prompt = (
+            f"Editorial product photograph of a premium canvas tote bag hanging on a {ctx['surface']}. "
             f"Small minimalist abstract emblem on front panel. "
             f"Art-directed still life. Natural daylight. "
-            f"{base}"
-        ), 1024, 1024
+            + base
+        )
+        return tote_prompt, 1024, 1024
 
     if label == "hat":
         return (
-            f"Editorial product photo of a structured 6-panel {cap_color} cap, "
+            f"Editorial product photo of a structured 6-panel {ctx['tee_color']} cap, "
             f"small embroidered emblem on front. "
-            f"Three-quarter angle on {surface}. Natural daylight. "
-            f"{base}"
+            f"Three-quarter angle on {ctx['surface']}. Natural daylight. "
+            + base
         ), 1024, 1024
 
     # sticker / default
     return (
-        f"Top-down editorial photograph of die-cut vinyl stickers on {surface}. "
+        f"Top-down editorial photograph of die-cut vinyl stickers on {ctx['surface']}. "
         f"Abstract minimalist shapes, glossy finish. "
-        f"{base}"
+        + base
     ), 1024, 1024
 
 

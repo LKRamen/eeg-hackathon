@@ -6,6 +6,7 @@ import type { Job, JobStatus } from "@halo/types";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { BrandKitSlides } from "@/components/BrandKitSlides";
+import BrandAssetsSection from "@/components/BrandAssetsSection";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -119,6 +120,12 @@ export default function JobPage({ params }: { params: { id: string } }) {
     });
   }, [job?.result]);
 
+  useEffect(() => {
+    if (!job?.result) return;
+    console.log("social_kit raw", job.result.brand_assets?.social_kit);
+    console.log("social_kit length", job.result.brand_assets?.social_kit?.length ?? "undefined");
+  }, [job?.result]);
+
   const showToast = (msg: string) => {
     setToast(msg);
     setTimeout(() => setToast(null), 3000);
@@ -163,6 +170,7 @@ export default function JobPage({ params }: { params: { id: string } }) {
         {job.status === "done" && job.result && (
           <div className="animate-in fade-in duration-700">
             <BrandKitSlides result={job.result} className="w-full" />
+            <BrandAssetsSection result={job.result} />
 
             {/* Keep secondary actions available but out of the slide canvas */}
             <div className="mt-8 flex flex-wrap items-center gap-3">
