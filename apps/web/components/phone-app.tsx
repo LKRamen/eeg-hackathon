@@ -43,8 +43,29 @@ interface BrandResult {
   canva_folder_url?: string | null;
 }
 
-type Screen = 'input' | 'generating' | 'results';
-const SCREENS: Screen[] = ['input', 'generating', 'results'];
+type Screen = 'input' | 'generating' | 'results' | 'library';
+const FLOW_SCREENS: Screen[] = ['input', 'generating', 'results'];
+
+// ─── saved brands (localStorage) ─────────────────────────────────────────────
+interface SavedBrand {
+  id: string;
+  handle: string;
+  savedAt: string;
+  result: BrandResult;
+}
+
+const STORAGE_KEY = 'stencil_brands';
+
+function loadSaved(): SavedBrand[] {
+  if (typeof window === 'undefined') return [];
+  try { return JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '[]'); } catch { return []; }
+}
+
+function saveBrand(handle: string, result: BrandResult) {
+  const all = loadSaved();
+  const entry: SavedBrand = { id: crypto.randomUUID(), handle, savedAt: new Date().toISOString(), result };
+  localStorage.setItem(STORAGE_KEY, JSON.stringify([entry, ...all].slice(0, 50)));
+}
 
 // ─── shared micro-components ──────────────────────────────────────────────────
 
@@ -67,10 +88,11 @@ function DownloadChip({ label }: { label: string }) {
 // ─── progress bar ─────────────────────────────────────────────────────────────
 
 function ProgressBar({ current, onBack }: { current: Screen; onBack: (s: Screen) => void }) {
-  const idx = SCREENS.indexOf(current);
+  const idx = FLOW_SCREENS.indexOf(current);
+  if (idx === -1) return null;
   return (
     <div style={{ position: 'absolute', top: 60, left: 22, right: 22, zIndex: 40, display: 'flex', gap: 5 }}>
-      {SCREENS.map((s, i) => {
+      {FLOW_SCREENS.map((s, i) => {
         const done   = i < idx;
         const active = i === idx;
         return (
@@ -105,7 +127,7 @@ function HomeIndicator() {
 
 // ─── screen 1 — input ─────────────────────────────────────────────────────────
 
-function InputScreen({ onNext }: { onNext: (jobId: string) => void }) {
+function InputScreen({ onNext }: { onNext: (jobId: string, handle: string) => void }) {
   const [handle, setHandle]     = useState('');
   const [idea, setIdea]         = useState('');
   const [platform, setPlatform] = useState<'instagram' | 'x'>('instagram');
@@ -116,19 +138,16 @@ function InputScreen({ onNext }: { onNext: (jobId: string) => void }) {
     if (!handle.trim() || !idea.trim()) return;
     setLoading(true);
     setError(null);
+    const cleanHandle = handle.replace(/^@/, '');
     try {
       const res = await fetch(`${API}/jobs`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          handle: handle.replace(/^@/, ''),
-          product_idea: idea,
-          platform,
-        }),
+        body: JSON.stringify({ handle: cleanHandle, product_idea: idea, platform }),
       });
       if (!res.ok) throw new Error(`${res.status}`);
       const { job_id } = await res.json();
-      onNext(job_id);
+      onNext(job_id, cleanHandle);
     } catch {
       setError('Could not start — is the API running?');
       setLoading(false);
@@ -575,38 +594,164 @@ function ResultsScreen({ result, onReset }: { result: BrandResult; onReset: () =
   );
 }
 
+// ─── screen 4 — library ───────────────────────────────────────────────────────
+
+function LibraryScreen({ onOpen }: { onOpen: (b: SavedBrand) => void }) {
+  const [brands, setBrands] = useState<SavedBrand[]>([]);
+
+  useEffect(() => { setBrands(loadSaved()); }, []);
+
+  const left  = brands.filter((_, i) => i % 2 === 0);
+  const right = brands.filter((_, i) => i % 2 === 1);
+
+  const BrandCard = ({ b }: { b: SavedBrand }) => {
+    const brand = b.result.brand_assets;
+    const accent = brand.palette.find(c => c.role === 'accent')?.hex ?? brand.palette[0]?.hex ?? '#c4b5fd';
+    const tall = brand.mockups && brand.mockups.length > 0;
+    return (
+      <div
+        onClick={() => onOpen(b)}
+        style={{ borderRadius: 16, overflow: 'hidden', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)', cursor: 'pointer', marginBottom: 10, transition: 'transform 0.15s' }}
+      >
+        {/* color bar */}
+        <div style={{ display: 'flex', height: 6 }}>
+          {brand.palette.slice(0, 5).map((c, i) => (
+            <div key={i} style={{ flex: 1, background: c.hex }}/>
+          ))}
+        </div>
+
+        {/* logo / mockup image */}
+        {tall && brand.mockups[0]?.url ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={brand.mockups[0].url} alt="" style={{ width: '100%', aspectRatio: '1', objectFit: 'cover', display: 'block' }}/>
+        ) : brand.logo?.primary ? (
+          <div style={{ background: '#fff', padding: '14px 10px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={brand.logo.primary} alt="" style={{ width: '100%', maxHeight: 64, objectFit: 'contain', display: 'block' }}/>
+          </div>
+        ) : (
+          <div style={{ height: 64, background: `${accent}18`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <LogoMark size={22} color={accent}/>
+          </div>
+        )}
+
+        {/* name + meta */}
+        <div style={{ padding: '9px 10px 10px' }}>
+          <p style={{ fontFamily: 'var(--font-display), serif', fontStyle: 'italic', fontSize: 15, color: '#f0eef4', letterSpacing: '-0.3px', marginBottom: 2, lineHeight: 1.1 }}>{brand.brand_name}</p>
+          <p style={{ fontSize: 9, color: 'rgba(240,238,244,0.35)', lineHeight: 1.3, marginBottom: 6 }}>{brand.tagline}</p>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+            <span style={{ fontSize: 8, color: 'rgba(240,238,244,0.25)', letterSpacing: '0.3px' }}>@{b.handle}</span>
+            <span style={{ width: 2, height: 2, borderRadius: '50%', background: 'rgba(255,255,255,0.15)', display: 'inline-block' }}/>
+            <span style={{ fontSize: 8, color: 'rgba(240,238,244,0.2)' }}>
+              {new Date(b.savedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+            </span>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  return (
+    <div className="screen-enter" style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+      {/* header */}
+      <div style={{ flexShrink: 0, padding: '72px 22px 14px', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+        <p style={{ fontSize: 9, fontWeight: 700, letterSpacing: '1.2px', textTransform: 'uppercase', color: 'rgba(240,238,244,0.3)', marginBottom: 4 }}>stencil</p>
+        <h2 style={{ fontFamily: 'var(--font-display), serif', fontStyle: 'italic', fontSize: 26, color: '#f0eef4', letterSpacing: '-0.5px', lineHeight: 1 }}>your brands</h2>
+      </div>
+
+      {/* grid */}
+      {brands.length === 0 ? (
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '0 36px', gap: 10 }}>
+          <div style={{ width: 48, height: 48, borderRadius: 14, background: 'rgba(210,190,255,0.06)', border: '1px solid rgba(210,190,255,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <Icon name="package" size={20} color="rgba(210,190,255,0.4)"/>
+          </div>
+          <p style={{ fontSize: 13, color: 'rgba(240,238,244,0.3)', textAlign: 'center', lineHeight: 1.5 }}>no brand kits yet.<br/>generate your first one.</p>
+        </div>
+      ) : (
+        <div style={{ flex: 1, overflowY: 'auto', scrollbarWidth: 'none' as const, padding: '14px 12px 80px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, alignItems: 'start' }}>
+            <div>{left.map(b  => <BrandCard key={b.id} b={b}/>)}</div>
+            <div style={{ marginTop: 20 }}>{right.map(b => <BrandCard key={b.id} b={b}/>)}</div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── bottom tab bar ───────────────────────────────────────────────────────────
+
+function BottomTabs({ active, onChange }: { active: 'create' | 'library'; onChange: (t: 'create' | 'library') => void }) {
+  const tabs: { key: 'create' | 'library'; label: string; icon: 'sparkle' | 'package' }[] = [
+    { key: 'create',  label: 'create',     icon: 'sparkle' },
+    { key: 'library', label: 'your brands', icon: 'package' },
+  ];
+  return (
+    <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, zIndex: 60, background: 'rgba(20,18,26,0.92)', backdropFilter: 'blur(16px)', borderTop: '1px solid rgba(255,255,255,0.06)', display: 'flex', paddingBottom: 22 }}>
+      {tabs.map(t => {
+        const on = active === t.key;
+        return (
+          <button key={t.key} onClick={() => onChange(t.key)} style={{ flex: 1, border: 'none', background: 'transparent', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, padding: '10px 0 0', fontFamily: 'inherit' }}>
+            <Icon name={t.icon} size={18} color={on ? 'rgba(210,190,255,0.95)' : 'rgba(255,255,255,0.25)'}/>
+            <span style={{ fontSize: 9, fontWeight: 600, letterSpacing: '0.4px', color: on ? 'rgba(210,190,255,0.9)' : 'rgba(255,255,255,0.25)', textTransform: 'uppercase' }}>{t.label}</span>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 // ─── phone shell ──────────────────────────────────────────────────────────────
 
 export function PhoneAppScreen() {
-  const [screen, setScreen] = useState<Screen>('input');
-  const [jobId,  setJobId]  = useState<string | null>(null);
-  const [result, setResult] = useState<BrandResult | null>(null);
+  const [screen,  setScreen]  = useState<Screen>('input');
+  const [tab,     setTab]     = useState<'create' | 'library'>('create');
+  const [jobId,   setJobId]   = useState<string | null>(null);
+  const [result,  setResult]  = useState<BrandResult | null>(null);
+  const [handle,  setHandle]  = useState('');
+  const [preview, setPreview] = useState<SavedBrand | null>(null);
 
   const reset = () => {
     setScreen('input');
     setJobId(null);
     setResult(null);
+    setPreview(null);
   };
+
+  const handleTabChange = (t: 'create' | 'library') => {
+    setTab(t);
+    setPreview(null);
+  };
+
+  const activeScreen: Screen = tab === 'library' ? (preview ? 'results' : 'library') : screen;
 
   return (
     <div className="phone-screen">
       <StatusBar/>
-      <ProgressBar current={screen} onBack={s => { if (s === 'input') reset(); }}/>
+      <ProgressBar current={activeScreen} onBack={s => { if (s === 'input') reset(); }}/>
 
-      {screen === 'input' && (
-        <InputScreen onNext={id => { setJobId(id); setScreen('generating'); }}/>
+      {tab === 'create' && screen === 'input' && (
+        <InputScreen onNext={(id, h) => { setJobId(id); setHandle(h); setScreen('generating'); }}/>
       )}
-      {screen === 'generating' && jobId && (
+      {tab === 'create' && screen === 'generating' && jobId && (
         <GeneratingScreen
           jobId={jobId}
-          onDone={r => { setResult(r); setScreen('results'); }}
+          onDone={r => { saveBrand(handle, r); setResult(r); setScreen('results'); }}
           onError={reset}
         />
       )}
-      {screen === 'results' && result && (
+      {tab === 'create' && screen === 'results' && result && (
         <ResultsScreen result={result} onReset={reset}/>
       )}
 
+      {tab === 'library' && !preview && (
+        <LibraryScreen onOpen={b => setPreview(b)}/>
+      )}
+      {tab === 'library' && preview && (
+        <ResultsScreen result={preview.result} onReset={() => setPreview(null)}/>
+      )}
+
+      <BottomTabs active={tab} onChange={handleTabChange}/>
       <HomeIndicator/>
     </div>
   );
