@@ -2,8 +2,9 @@ from __future__ import annotations
 
 from fastapi import APIRouter, BackgroundTasks, HTTPException
 
+from ..config import get_settings
 from ..models.schemas import CreateJobRequest, Job
-from ..services import jobs_db
+from ..services import cache, jobs_db
 from ..services.pipeline import run_pipeline
 
 router = APIRouter(prefix="/jobs", tags=["jobs"])
@@ -17,7 +18,13 @@ async def create_job(body: CreateJobRequest, background_tasks: BackgroundTasks):
         platform=body.platform,
         user_id="anon",
     )
-    background_tasks.add_task(run_pipeline, job_id)
+
+    settings = get_settings()
+    if settings.cache_mode and cache.is_cached_handle(body.handle, settings.demo_handle):
+        background_tasks.add_task(cache.play_cached_pipeline, job_id, body.handle)
+    else:
+        background_tasks.add_task(run_pipeline, job_id)
+
     return {"job_id": job_id}
 
 
