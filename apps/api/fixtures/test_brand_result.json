@@ -1,0 +1,122 @@
+{
+  "persona": {
+    "name": "Mio",
+    "age_range": "24-29",
+    "location_archetype": "Brooklyn, Lisbon, Mexico City",
+    "psychographics": [
+      "values craft over hype",
+      "anti-algorithm, curates carefully",
+      "early adopter who hates early adopters",
+      "buys for story, not trend"
+    ],
+    "interests": [
+      "natural wine",
+      "minimalist techno",
+      "specialty coffee",
+      "analogue photography",
+      "brutalist architecture"
+    ],
+    "purchase_signals": [
+      "small-batch coffee beans",
+      "limited-run clothing drops",
+      "design-forward everyday objects",
+      "independent bookshops"
+    ],
+    "aesthetic_keywords": [
+      "matte black",
+      "brutalist concrete",
+      "Tokyo neon",
+      "raw edges",
+      "monospace type"
+    ],
+    "voice_traits": [
+      "dry",
+      "observational",
+      "knowing"
+    ],
+    "summary": "Mio moves between creative cities collecting references and staying ahead of whatever's about to be everywhere. She buys for quality and story, not trend, and can clock a brand that's trying too hard from across the room."
+  },
+  "brand_assets": {
+    "brand_name": "Hush",
+    "logo_url": "",
+    "palette": [
+      { "hex": "#0a0a0a", "role": "primary", "name": "Void" },
+      { "hex": "#e8e4dc", "role": "secondary", "name": "Raw Linen" },
+      { "hex": "#c8fa64", "role": "accent", "name": "Signal Green" },
+      { "hex": "#f5f2ec", "role": "bg", "name": "Parchment" },
+      { "hex": "#1a1a1a", "role": "fg", "name": "Ink" }
+    ],
+    "typography": {
+      "display": {
+        "family": "Space Grotesk",
+        "google_url": "https://fonts.google.com/specimen/Space+Grotesk"
+      },
+      "body": {
+        "family": "DM Sans",
+        "google_url": "https://fonts.google.com/specimen/DM+Sans"
+      }
+    },
+    "voice": {
+      "tone": "Dry, precise, slightly enigmatic",
+      "do": [
+        "Speak in declarative sentences. No hedging.",
+        "Reference the product's effect, not its ingredients.",
+        "Let silence do work — short copy, generous whitespace."
+      ],
+      "dont": [
+        "Never use the word 'journey' or 'hustle'.",
+        "Don't explain the joke.",
+        "Avoid exclamation marks entirely."
+      ],
+      "examples": [
+        "Don't sleep on it.",
+        "Matcha. Midnight. Make something.",
+        "The drink for people who are already awake."
+      ]
+    },
+    "mockups": [
+      { "label": "tee", "url": "" },
+      { "label": "tote", "url": "" }
+    ]
+  },
+  "agency_matches": [
+    {
+      "id": "agency-001",
+      "name": "Studio Null",
+      "blurb": "Boutique branding studio specializing in dark-aesthetic consumer brands. Known for restraint and typographic precision.",
+      "specialty_tags": ["brand identity", "packaging", "art direction"],
+      "aesthetic_tags": ["minimalist", "dark", "editorial", "brutalist"],
+      "notable_clients": ["Ace & Tate", "Le Labo", "Kinfolk"],
+      "min_budget": "$8k",
+      "website": "https://studionull.co",
+      "match_score": 94.2,
+      "why": "Their brutalist-editorial language maps directly to Mio's aesthetic cluster."
+    },
+    {
+      "id": "agency-002",
+      "name": "Forma Bureau",
+      "blurb": "Cross-disciplinary studio working at the intersection of product design and brand strategy for independent consumer brands.",
+      "specialty_tags": ["brand strategy", "product design", "packaging"],
+      "aesthetic_tags": ["functional", "industrial", "monochrome", "craft"],
+      "notable_clients": ["Aesop", "Muji", "Recess"],
+      "min_budget": "$12k",
+      "website": "https://formabureau.studio",
+      "match_score": 87.6,
+      "why": "Strong track record in functional-aesthetic beverage and wellness packaging."
+    },
+    {
+      "id": "agency-003",
+      "name": "Nachtwerk",
+      "blurb": "Berlin-based creative agency with deep roots in music and nightlife culture. Specializes in brands that need subcultural credibility.",
+      "specialty_tags": ["brand identity", "culture marketing", "merch design"],
+      "aesthetic_tags": ["underground", "typographic", "dark", "urban"],
+      "notable_clients": ["Berghain merch", "Boiler Room", "Carhartt WIP"],
+      "min_budget": "$6k",
+      "website": "https://nachtwerk.studio",
+      "match_score": 82.1,
+      "why": "Tokyo neon and techno signals in the audience align with their nightlife positioning."
+    }
+  ],
+  "brand_guide_pdf_url": null,
+  "error_message": null
+}

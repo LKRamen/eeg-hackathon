@@ -50,10 +50,10 @@ async def generate_mockups(
 ) -> list[Mockup]:
     accent = brand_color_hex.lstrip("#")
     return [
-        Mockup(label="Tee", url=_placeholder(f"{brand_name} TEE", bg=accent, size="1200x900")),
-        Mockup(label="Tote", url=_placeholder(f"{brand_name} TOTE", bg=accent, size="1200x900")),
-        Mockup(label="Hat", url=_placeholder(f"{brand_name} HAT", bg=accent, size="1200x900")),
-        Mockup(label="Sticker", url=_placeholder(brand_name, bg=accent, size="800x800")),
+        Mockup(label="tee", url=_placeholder(f"{brand_name} TEE", bg=accent, size="1200x900")),
+        Mockup(label="tote", url=_placeholder(f"{brand_name} TOTE", bg=accent, size="1200x900")),
+        Mockup(label="hat", url=_placeholder(f"{brand_name} HAT", bg=accent, size="1200x900")),
+        Mockup(label="sticker", url=_placeholder(brand_name, bg=accent, size="800x800")),
     ]
 
 
@@ -69,26 +69,26 @@ async def generate_social_kit(
         SocialAsset(
             label="ig_post_hero",
             url=_placeholder(f"{brand_name} HERO", bg=accent, size="1080x1080"),
-            format="post",
+            format="ig_square",
         ),
         SocialAsset(
             label="ig_post_lifestyle",
             url=_placeholder(f"{brand_name}", bg=accent, size="1080x1080"),
-            format="post",
+            format="ig_square",
         ),
         SocialAsset(
             label="ig_post_quote",
             url=_placeholder("quote", bg=accent, size="1080x1080"),
-            format="post",
+            format="ig_square",
         ),
         SocialAsset(
             label="ig_story_promo",
             url=_placeholder(f"{brand_name}", bg=accent, size="1080x1920"),
-            format="story",
+            format="ig_story",
         ),
         SocialAsset(
             label="ig_story_tease",
             url=_placeholder("soon", bg=accent, size="1080x1920"),
-            format="story",
+            format="ig_story",
         ),
     ]

@@ -115,26 +115,31 @@ class Voice(BaseModel):
     examples: list[str]
 
 
+# Person 3's strict mockup labels — drives template selection in canva.py.
+MockupLabel = Literal["tee", "tote", "hat", "sticker"]
+
+
 class Mockup(BaseModel):
-    label: str
+    label: MockupLabel
     url: str
 
 
 class LogoVariants(BaseModel):
-    """Person 3's logo set — primary + monos + on-brand + avatar."""
+    """Person 3's logo set — primary, mono, on-brand, avatar."""
     primary: str
     mono_dark: str
     mono_light: str
     on_brand: str
+    # Default empty so Person 4's stub/orchestrator can compose without
+    # an avatar render available — Person 3's real images.py always sets it.
     avatar: str = ""
 
 
 class SocialAsset(BaseModel):
-    """Single social-media-sized image (post or story)."""
+    """Single social-media-sized image, owned by Person 3's images module."""
     label: str
     url: str
-    platform: Platform = "instagram"
-    format: Literal["post", "story"] = "post"
+    format: Literal["ig_square", "ig_story"]
 
 
 class BrandAssets(BaseModel):
