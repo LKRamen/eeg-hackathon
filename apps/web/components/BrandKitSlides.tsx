@@ -1431,6 +1431,80 @@ export function BrandKitSlides({ result, className }: Props) {
           );
         })}
       </div>
+
+      {/* Download toolbar */}
+      <div
+        className="bk-toolbar"
+        style={{
+          position: "fixed", bottom: 0, left: 0, right: 0,
+          display: "flex", justifyContent: "center", alignItems: "center", gap: 12,
+          padding: "10px 24px",
+          background: "rgba(10,10,10,0.92)",
+          backdropFilter: "blur(12px)",
+          borderTop: "1px solid rgba(255,255,255,0.07)",
+          zIndex: 200,
+          fontFamily: "'Space Mono', monospace",
+        }}
+      >
+        <button
+          onClick={() => {
+            const accent = palette[0]?.hex ?? "#b4f300";
+            const captions = buildCaptions(brand, persona);
+            const txt = [
+              `${brand.brand_name}\n${brand.tagline ?? ""}`,
+              `\nCOLORS`,
+              ...palette.map((c) => `${c.hex}  ${c.role}  ${c.name}`),
+              `\nTYPOGRAPHY`,
+              `Display: ${brand.typography?.display?.family ?? "—"}`,
+              `Body:    ${brand.typography?.body?.family ?? "—"}`,
+              `\nVOICE`,
+              `Tone: ${brand.voice?.tone ?? "—"}`,
+              `\nDo:`,
+              ...(brand.voice?.do ?? []).map((d) => `  + ${d}`),
+              `\nDon't:`,
+              ...(brand.voice?.dont ?? []).map((d) => `  - ${d}`),
+              `\nExamples:`,
+              ...(brand.voice?.examples ?? []).map((e) => `  "${e}"`),
+              `\nSOCIAL CAPTIONS`,
+              ...captions.map((p) =>
+                `[${p.name}]\n` +
+                p.captions.map((c) => `${c.text}\n${c.tags}`).join("\n\n")
+              ),
+            ].join("\n");
+            const a = document.createElement("a");
+            a.href = URL.createObjectURL(new Blob([txt], { type: "text/plain" }));
+            a.download = "brand-kit.txt";
+            a.click();
+          }}
+          style={{
+            fontFamily: "inherit", fontSize: 11, letterSpacing: "0.08em",
+            padding: "6px 16px", borderRadius: 4, border: "none", cursor: "pointer",
+            background: palette[0]?.hex ?? "#b4f300",
+            color: dark(palette[0]?.hex ?? "#b4f300") ? "#fff" : "#000",
+          }}
+        >
+          ↓ Brand Kit (.txt)
+        </button>
+        <button
+          onClick={() => {
+            const a = document.createElement("a");
+            a.href = URL.createObjectURL(
+              new Blob([JSON.stringify(result, null, 2)], { type: "application/json" })
+            );
+            a.download = "brand-kit.json";
+            a.click();
+          }}
+          style={{
+            fontFamily: "inherit", fontSize: 11, letterSpacing: "0.08em",
+            padding: "6px 16px", borderRadius: 4, cursor: "pointer",
+            background: "transparent",
+            color: "rgba(255,255,255,0.5)",
+            border: "1px solid rgba(255,255,255,0.12)",
+          }}
+        >
+          ↓ Raw Data (.json)
+        </button>
+      </div>
     </div>
   );
 }
