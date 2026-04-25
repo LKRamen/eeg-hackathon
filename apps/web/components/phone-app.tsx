@@ -28,6 +28,8 @@ interface BrandResult {
     mockups: Mockup[];
   };
   agency_matches: AgencyMatch[];
+  canva_edit_urls?: Record<string, string> | null;
+  canva_folder_url?: string | null;
 }
 
 type Screen = 'input' | 'generating' | 'results';
@@ -441,6 +443,40 @@ function ResultsScreen({ result, onReset }: { result: BrandResult; onReset: () =
             })}
           </div>
         </div>
+
+        {/* 06 — canva templates */}
+        {(result.canva_edit_urls || result.canva_folder_url) && (
+          <div style={{ padding: '0 22px', marginBottom: 28 }}>
+            <SectionLabel>06 · canva templates</SectionLabel>
+            <div style={{ background: 'rgba(255,255,255,0.025)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 14, padding: '14px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
+                <div style={{ width: 32, height: 32, borderRadius: 8, background: 'rgba(124,77,255,0.15)', border: '1px solid rgba(124,77,255,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  <span style={{ fontSize: 14 }}>✦</span>
+                </div>
+                <div>
+                  <p style={{ fontSize: 12, fontWeight: 600, color: '#f0eef4' }}>Brand kit in Canva</p>
+                  <p style={{ fontSize: 10, color: 'rgba(240,238,244,0.4)' }}>logos, mockups + social templates ready to edit</p>
+                </div>
+              </div>
+              {result.canva_folder_url && (
+                <a href={result.canva_folder_url} target="_blank" rel="noreferrer" style={{ textDecoration: 'none', display: 'block', marginBottom: 8 }}>
+                  <div style={{ padding: '9px 12px', borderRadius: 10, background: 'rgba(124,77,255,0.12)', border: '1px solid rgba(124,77,255,0.25)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <span style={{ fontSize: 11, color: 'rgba(210,190,255,0.9)', fontWeight: 600 }}>open asset folder</span>
+                    <Icon name="arrow" size={10} color="rgba(210,190,255,0.7)"/>
+                  </div>
+                </a>
+              )}
+              {result.canva_edit_urls && Object.entries(result.canva_edit_urls).slice(0, 5).map(([label, url]) => (
+                <a key={label} href={url} target="_blank" rel="noreferrer" style={{ textDecoration: 'none', display: 'block', marginBottom: 5 }}>
+                  <div style={{ padding: '8px 12px', borderRadius: 9, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <span style={{ fontSize: 10, color: 'rgba(240,238,244,0.6)', textTransform: 'capitalize' }}>{label.replace(/_/g, ' ')}</span>
+                    <span style={{ fontSize: 9, color: 'rgba(210,190,255,0.5)', display: 'flex', alignItems: 'center', gap: 3 }}>edit <Icon name="arrow" size={8} color="rgba(210,190,255,0.4)"/></span>
+                  </div>
+                </a>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* start over */}
         <div style={{ padding: '0 22px 40px' }}>

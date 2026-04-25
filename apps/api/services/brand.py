@@ -7,7 +7,7 @@ import re
 from ..models.schemas import BrandAssets, Persona
 
 from ._brand_name_stub import suggest_brand_name
-from ._images_stub import generate_logo_set, generate_mockups, generate_social_kit
+from .images import generate_logo_set, generate_mockups, generate_social_kit
 from ._palette import generate_palette
 from ._typography import generate_typography
 from ._voice import generate_voice

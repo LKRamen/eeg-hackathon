@@ -284,6 +284,37 @@ def _make_on_brand(mono_light: Image.Image, brand_color_hex: str) -> Image.Image
     return Image.alpha_composite(bg, mono_light)
 
 
+def _pillow_wordmark(brand_name: str, brand_color_hex: str, size: int = 1024) -> Image.Image:
+    """Create a clean branded wordmark when HF is unavailable."""
+    bg_rgb = _hex_to_rgb(brand_color_hex)
+    # Choose text color with enough contrast
+    lum = 0.299 * bg_rgb[0] + 0.587 * bg_rgb[1] + 0.114 * bg_rgb[2]
+    text_rgb = (10, 10, 10) if lum > 140 else (245, 245, 240)
+
+    img = Image.new("RGBA", (size, size), (*bg_rgb, 255))
+    draw = ImageDraw.Draw(img)
+
+    # Try to load a bundled font, fall back to default
+    font_path = _FONTS_DIR / "SpaceGrotesk-Bold.ttf"
+    if not font_path.exists():
+        font_path = _FONTS_DIR / "Inter-Bold.ttf"
+
+    font_size = max(60, size // max(len(brand_name), 3))
+    try:
+        font = ImageFont.truetype(str(font_path), font_size)
+    except Exception:
+        font = ImageFont.load_default()
+
+    # Center the text
+    bbox = draw.textbbox((0, 0), brand_name.upper(), font=font)
+    w, h = bbox[2] - bbox[0], bbox[3] - bbox[1]
+    x = (size - w) // 2
+    y = (size - h) // 2
+    draw.text((x, y), brand_name.upper(), fill=(*text_rgb, 255), font=font)
+
+    return img
+
+
 async def generate_logo_set(
     brand_name: str,
     product_idea: str,
@@ -291,9 +322,16 @@ async def generate_logo_set(
     brand_color_hex: str,
     job_id: str,
 ) -> LogoVariants:
-    """Generate primary logo via HF, derive 4 variants with Pillow, upload all."""
-    prompt = _logo_prompt(brand_name, product_idea, persona)
-    primary = await _hf_generate(prompt)  # negatives are inline for FLUX compatibility
+    """Generate primary logo via HF (with Pillow wordmark fallback), derive 4 variants."""
+    try:
+        prompt = _logo_prompt(brand_name, product_idea, persona)
+        primary = await _hf_generate(prompt)
+    except Exception as exc:
+        import logging
+        logging.getLogger(__name__).warning(
+            "HF logo generation failed (%s) — using Pillow wordmark fallback", exc
+        )
+        primary = _pillow_wordmark(brand_name, brand_color_hex)
 
     mono_dark = _to_mono(primary, (0, 0, 0))
     mono_light = _to_mono(primary, (255, 255, 255))

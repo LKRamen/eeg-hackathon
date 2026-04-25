@@ -9,10 +9,6 @@ from ._stubs import export  # phase 3d: swap to Node /api/export
 
 log = logging.getLogger(__name__)
 
-# USE_STUBS=true forces every service to its stub implementation. Useful as a
-# demo-day fallback if any real provider (OpenAI / HF / Apify / Supabase) is
-# flaky. Default false → keep the current swap state (real scraper / persona /
-# matching, stub brand / export).
 USE_STUBS = os.getenv("USE_STUBS", "false").lower() == "true"
 
 if USE_STUBS:
@@ -25,7 +21,21 @@ else:
     from . import scraper as scraper_svc
     from . import persona as persona_svc
     from . import matching as matching_svc
-    from . import brand  # real assemble() — palette/typo/voice via GPT-4o; images still stubbed
+    from . import brand  # real assemble() — palette/typo/voice via Claude; images via HF + Pillow
+
+
+async def _build_canva_kit(brand_assets, job_id: str) -> tuple[dict | None, str | None]:
+    """Try to build a Canva GTM kit. Returns (edit_urls, folder_url) or (None, None)."""
+    try:
+        from . import canva as canva_svc
+        if not canva_svc.is_configured():
+            return None, None
+        from .gtm_canva import build_gtm_kit
+        kit = await build_gtm_kit(brand_assets, job_id)
+        return kit.edit_urls, kit.asset_folder_url
+    except Exception as exc:
+        log.warning("Canva kit skipped (%s)", exc)
+        return None, None
 
 
 async def run_pipeline(job_id: str) -> None:
@@ -47,11 +57,16 @@ async def run_pipeline(job_id: str) -> None:
         jobs_db.update_status(job_id, "exporting")
         pdf_url = await export.build_pdf(brand_assets, persona)
 
+        # Optional: build Canva GTM kit (skipped gracefully if no credentials)
+        canva_edit_urls, canva_folder_url = await _build_canva_kit(brand_assets, job_id)
+
         result = BrandResult(
             persona=persona,
             brand_assets=brand_assets,
             agency_matches=matches,
             brand_guide_pdf_url=pdf_url,
+            canva_edit_urls=canva_edit_urls,
+            canva_folder_url=canva_folder_url,
         )
         jobs_db.set_result(job_id, result)
         log.info("pipeline done: %s", job_id)

@@ -30,8 +30,8 @@ from dataclasses import dataclass, field
 
 from pydantic import BaseModel
 
-from models.schemas import BrandResult, LogoVariants, Mockup, Persona, SocialAsset
-from services import canva
+from ..models.schemas import BrandResult, LogoVariants, Mockup, Persona, SocialAsset
+from . import canva
 
 
 # ---------------------------------------------------------------------------

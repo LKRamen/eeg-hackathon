@@ -165,6 +165,8 @@ class BrandResult(BaseModel):
     web_guide_url: Optional[str] = None
     mfg_spec_sheet_pdf_url: Optional[str] = None
     brand_kit_zip_url: Optional[str] = None
+    canva_edit_urls: Optional[dict[str, str]] = None   # label → Canva edit URL
+    canva_folder_url: Optional[str] = None
     error_message: Optional[str] = None
 
 
