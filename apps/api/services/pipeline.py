@@ -3,8 +3,8 @@ from __future__ import annotations
 import logging
 
 from ..models.schemas import BrandResult
-from . import jobs_db
-from ._stubs import brand, export, matching, persona_svc, scraper
+from . import jobs_db, scraper as scraper_svc
+from ._stubs import brand, export, matching, persona_svc
 
 log = logging.getLogger(__name__)
 
@@ -14,7 +14,7 @@ async def run_pipeline(job_id: str) -> None:
         job = jobs_db.get_job(job_id)
 
         jobs_db.update_status(job_id, "scraping")
-        audience = await scraper.scrape(job.handle)
+        audience = await scraper_svc.scrape(job.handle, job.platform)
 
         jobs_db.update_status(job_id, "synthesizing")
         persona = await persona_svc.synthesize(job.product_idea, audience)
