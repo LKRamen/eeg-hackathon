@@ -24,9 +24,9 @@ import httpx
 from huggingface_hub import AsyncInferenceClient
 from PIL import Image, ImageDraw, ImageFont
 
-from config import get_settings
-from models.schemas import LogoVariants, Mockup, Persona, SocialAsset
-from services import canva, storage
+from ..config import get_settings
+from ..models.schemas import LogoVariants, Mockup, Persona, SocialAsset
+from . import canva, storage
 
 # ---------------------------------------------------------------------------
 # HF client

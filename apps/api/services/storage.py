@@ -6,7 +6,7 @@ from typing import Literal
 import httpx
 from PIL import Image
 
-from config import get_settings
+from ..config import get_settings
 
 Bucket = Literal["brand-assets", "brand-guides"]
 

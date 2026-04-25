@@ -19,7 +19,7 @@ from typing import Any
 
 import httpx
 
-from config import get_settings
+from ..config import get_settings
 
 _BASE = "https://api.canva.com/rest/v1"
 _TOKEN_URL = f"{_BASE}/oauth/token"

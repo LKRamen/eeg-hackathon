@@ -13,15 +13,13 @@ Top 3 clusters are attached to the Persona and used by the brand + matching
 services to make targeting decisions more specific.
 """
 
-from __future__ import annotations
-
 import json
 from typing import Any
 
 import numpy as np
 from openai import AsyncOpenAI
 
-from config import get_settings
+from ..config import get_settings
 
 _CLUSTERS = [
     "fitness_wellness",

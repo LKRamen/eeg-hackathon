@@ -33,7 +33,7 @@ async def call_json_mode(
     system: str,
     user: str,
     validator: Callable[[dict[str, Any]], T],
-    model: str = "gpt-4o-2024-08-06",
+    model: str = "gpt-4o",
     temperature: float = 0.7,
     retries: int = 1,
     repair_hint: str = "",
