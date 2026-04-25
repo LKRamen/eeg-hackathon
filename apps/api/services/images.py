@@ -322,15 +322,21 @@ async def generate_logo_set(
     brand_color_hex: str,
     job_id: str,
 ) -> LogoVariants:
-    """Generate primary logo via HF (with Pillow wordmark fallback), derive 4 variants."""
-    try:
-        prompt = _logo_prompt(brand_name, product_idea, persona)
-        primary = await _hf_generate(prompt)
-    except Exception as exc:
-        import logging
-        logging.getLogger(__name__).warning(
-            "HF logo generation failed (%s) — using Pillow wordmark fallback", exc
-        )
+    """Generate primary logo via HF if token set, else Pillow wordmark. Derive 4 variants."""
+    import logging as _log
+    _logger = _log.getLogger(__name__)
+
+    hf_token = get_settings().hf_token
+    if hf_token:
+        try:
+            prompt = _logo_prompt(brand_name, product_idea, persona)
+            primary = await _hf_generate(prompt)
+            _logger.info("HF logo generated for %s", brand_name)
+        except Exception as exc:
+            _logger.warning("HF logo generation failed (%s) — using Pillow wordmark", exc)
+            primary = _pillow_wordmark(brand_name, brand_color_hex)
+    else:
+        _logger.info("No HF_TOKEN — using Pillow wordmark for %s", brand_name)
         primary = _pillow_wordmark(brand_name, brand_color_hex)
 
     mono_dark = _to_mono(primary, (0, 0, 0))
@@ -422,22 +428,51 @@ async def _generate_mockup_canva(
         return await _generate_mockup_hf(label, persona, job_id)
 
 
+async def _generate_mockup_pillow(
+    label: _MockupLabel, brand_name: str, brand_color_hex: str, job_id: str
+) -> Mockup:
+    """Minimal Pillow mockup card when HF is unavailable."""
+    bg_rgb = _hex_to_rgb(brand_color_hex)
+    lum = 0.299 * bg_rgb[0] + 0.587 * bg_rgb[1] + 0.114 * bg_rgb[2]
+    text_rgb = (10, 10, 10) if lum > 140 else (245, 245, 240)
+    img = Image.new("RGBA", (1200, 900), (*bg_rgb, 255))
+    draw = ImageDraw.Draw(img)
+    font_path = _FONTS_DIR / "SpaceGrotesk-Bold.ttf"
+    try:
+        font_big = ImageFont.truetype(str(font_path), 120) if font_path.exists() else ImageFont.load_default()
+        font_sm  = ImageFont.truetype(str(font_path), 40)  if font_path.exists() else ImageFont.load_default()
+    except Exception:
+        font_big = font_sm = ImageFont.load_default()
+    name_upper = brand_name.upper()
+    bb = draw.textbbox((0, 0), name_upper, font=font_big)
+    draw.text(((1200 - bb[2] + bb[0]) // 2, 340), name_upper, fill=(*text_rgb, 200), font=font_big)
+    label_upper = label.upper()
+    bb2 = draw.textbbox((0, 0), label_upper, font=font_sm)
+    draw.text(((1200 - bb2[2] + bb2[0]) // 2, 500), label_upper, fill=(*text_rgb, 120), font=font_sm)
+    url = await storage.upload_pil(img, "brand-assets", f"jobs/{job_id}/mockup_{label}.png")
+    return Mockup(label=label, url=url)
+
+
 async def generate_mockups(
     brand_name: str,
     persona: Persona,
     job_id: str,
     include: list[_MockupLabel] | None = None,
+    brand_color_hex: str = "#1a1a1a",
 ) -> list[Mockup]:
     if include is None:
         include = ["tee", "tote"]
 
+    hf_token = get_settings().hf_token
     template_ids = canva.mockup_template_ids() if canva.is_configured() else []
     tasks = []
     for i, label in enumerate(include):
         if template_ids and i < len(template_ids):
             tasks.append(_generate_mockup_canva(label, persona, template_ids[i], job_id))
-        else:
+        elif hf_token:
             tasks.append(_generate_mockup_hf(label, persona, job_id))
+        else:
+            tasks.append(_generate_mockup_pillow(label, brand_name, brand_color_hex, job_id))
 
     return list(await asyncio.gather(*tasks))
 
@@ -570,7 +605,18 @@ async def generate_social_kit(
                 return SocialAsset(label="ig_post_lifestyle", url=url, format="ig_square")
             except Exception:
                 pass
-        url = await _lifestyle_hf(persona, 1024, 1024, job_id, "ig_post_lifestyle")
+        hf_tok = get_settings().hf_token
+        if hf_tok:
+            try:
+                url = await _lifestyle_hf(persona, 1024, 1024, job_id, "ig_post_lifestyle")
+                return SocialAsset(label="ig_post_lifestyle", url=url, format="ig_square")
+            except Exception:
+                pass
+        # Pillow fallback — aesthetic keywords as text overlay
+        kw_text = " · ".join(persona.aesthetic_keywords[:3]) if persona.aesthetic_keywords else tagline
+        img = _compose_text_post((1080, 1080), brand_color_hex, logo_pil, kw_text,
+                                 text_color_hex=text_hex, font_size=60)
+        url = await storage.upload_pil(img, "brand-assets", f"jobs/{job_id}/social_ig_post_lifestyle.png")
         return SocialAsset(label="ig_post_lifestyle", url=url, format="ig_square")
 
     async def _story_launch() -> SocialAsset:
@@ -588,7 +634,18 @@ async def generate_social_kit(
         return SocialAsset(label="ig_story_launch", url=url, format="ig_story")
 
     async def _story_closeup() -> SocialAsset:
-        url = await _lifestyle_hf(persona, 768, 1344, job_id, "ig_story_closeup")
+        hf_tok = get_settings().hf_token
+        if hf_tok:
+            try:
+                url = await _lifestyle_hf(persona, 768, 1344, job_id, "ig_story_closeup")
+                return SocialAsset(label="ig_story_closeup", url=url, format="ig_story")
+            except Exception:
+                pass
+        # Pillow fallback — tall story card with tagline
+        img = _compose_text_post((1080, 1920), brand_color_hex, logo_pil, tagline[:40],
+                                 text_color_hex=text_hex, font_size=80,
+                                 font_family=display_font)
+        url = await storage.upload_pil(img, "brand-assets", f"jobs/{job_id}/social_ig_story_closeup.png")
         return SocialAsset(label="ig_story_closeup", url=url, format="ig_story")
 
     return list(await asyncio.gather(_hero(), _quote(), _lifestyle(), _story_launch(), _story_closeup()))
