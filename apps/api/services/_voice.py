@@ -60,9 +60,15 @@ def _validate(parsed: dict[str, Any]) -> Voice:
     if not isinstance(examples, list) or len(examples) != 3:
         raise ValueError("examples must be a list of exactly 3 items")
 
-    do_clean = [str(x).strip() for x in do]
-    dont_clean = [str(x).strip() for x in dont]
-    examples_clean = [str(x).strip() for x in examples]
+    def _unwrap(x: Any) -> str:
+        """Claude sometimes returns {"tagline": "..."} objects instead of strings."""
+        if isinstance(x, dict):
+            return str(next(iter(x.values()), "")).strip()
+        return str(x).strip()
+
+    do_clean = [_unwrap(x) for x in do]
+    dont_clean = [_unwrap(x) for x in dont]
+    examples_clean = [_unwrap(x) for x in examples]
     _scan_examples(examples_clean)
 
     examples_clean[0] = _strip_trailing_punct(examples_clean[0])
