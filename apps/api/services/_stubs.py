@@ -25,7 +25,7 @@ def _sleep() -> float:
 
 
 class _Scraper:
-    async def scrape(self, handle: str) -> RawAudience:
+    async def scrape(self, handle: str, platform: str = "instagram") -> RawAudience:
         await asyncio.sleep(_sleep())
         with open(_FIXTURES / "sample_audience.json", encoding="utf-8") as f:
             data = json.load(f)

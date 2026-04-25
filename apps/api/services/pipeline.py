@@ -1,12 +1,29 @@
 from __future__ import annotations
 
 import logging
+import os
 
 from ..models.schemas import BrandResult
-from . import jobs_db, scraper as scraper_svc, persona as persona_svc, matching as matching_svc
-from ._stubs import brand, export
+from . import jobs_db
+from ._stubs import brand, export  # always-stubbed today; swapped in Phase 3
 
 log = logging.getLogger(__name__)
+
+# USE_STUBS=true forces every service to its stub implementation. Useful as a
+# demo-day fallback if any real provider (OpenAI / HF / Apify / Supabase) is
+# flaky. Default false → keep the current swap state (real scraper / persona /
+# matching, stub brand / export).
+USE_STUBS = os.getenv("USE_STUBS", "false").lower() == "true"
+
+if USE_STUBS:
+    from ._stubs import scraper as scraper_svc
+    from ._stubs import persona_svc
+    from ._stubs import matching as matching_svc
+    log.info("USE_STUBS=true — pipeline using all-stub services")
+else:
+    from . import scraper as scraper_svc
+    from . import persona as persona_svc
+    from . import matching as matching_svc
 
 
 async def run_pipeline(job_id: str) -> None:
