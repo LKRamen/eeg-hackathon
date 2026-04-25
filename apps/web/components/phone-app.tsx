@@ -3,137 +3,33 @@
 import { useState, useEffect, useRef } from 'react';
 import { Icon, LogoMark } from './icons';
 
-// ─── types & data ─────────────────────────────────────────────────────────────
+const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000';
 
-type Screen = 'upload' | 'style' | 'generating' | 'results';
-const SCREENS: Screen[] = ['upload', 'style', 'generating', 'results'];
+// ─── types (mirror apps/api/models/schemas.py) ────────────────────────────────
 
-const PALETTE_SETS: Record<string, string[]> = {
-  lovable:  ['#c4b5fd','#f9a8d4','#7dd3fc','#fde68a','#111114'],
-  apple:    ['#1d1d1f','#f5f5f7','#0071e3','#86868b','#ffffff'],
-  nike:     ['#111111','#fa5a28','#ffffff','#888888','#1a1a1a'],
-  glossier: ['#fde8eb','#ffb3c1','#c77dff','#f8edff','#1a1a1a'],
-  notion:   ['#191919','#ffffff','#2eaadc','#e9e5e3','#9b9b9b'],
-  supreme:  ['#ff0000','#ffffff','#000000','#cccccc','#1a1a1a'],
-};
+interface Color { hex: string; role: string; name: string; }
+interface AgencyMatch {
+  agency_id: string; name: string; blurb: string;
+  specialty_tags: string[]; match_score: number; why: string;
+}
+interface BrandResult {
+  persona: {
+    name: string; age_range: string; summary: string;
+    aesthetic_keywords: string[]; voice_traits: string[];
+    interests: string[]; psychographics: string[];
+  };
+  brand_assets: {
+    brand_name: string; tagline: string; logo_url: string;
+    palette: Color[];
+    voice: { tone: string; do: string[]; dont: string[]; examples: string[]; };
+  };
+  agency_matches: AgencyMatch[];
+}
 
-const COLOR_NAMES: Record<string, string[]> = {
-  lovable:  ['lavender','rose','sky','lemon','void'],
-  apple:    ['midnight','silver','cobalt','graphite','white'],
-  nike:     ['black','ember','white','ash','shadow'],
-  glossier: ['blush','rose','violet','petal','noir'],
-  notion:   ['obsidian','white','azure','sand','stone'],
-  supreme:  ['scarlet','white','black','chrome','shadow'],
-};
+type Screen = 'input' | 'generating' | 'results';
+const SCREENS: Screen[] = ['input', 'generating', 'results'];
 
-const STYLES = [
-  {
-    id: 'lovable', name: 'lovable', tag: 'gradient · playful · warm',
-    palette: ['#c4b5fd','#f9a8d4','#7dd3fc'],
-    preview: {
-      bg: 'linear-gradient(135deg,#1a0533,#2d1060)',
-      text: 'stencil',
-      textStyle: { fontFamily: 'var(--font-sans), Inter, sans-serif', fontWeight: 800, fontSize: 28, background: 'linear-gradient(135deg,#c4b5fd,#f9a8d4)', WebkitBackgroundClip: 'text' as const, WebkitTextFillColor: 'transparent' as const, backgroundClip: 'text' as const, letterSpacing: '-1px' },
-      accent: '#c4b5fd',
-    },
-  },
-  {
-    id: 'apple', name: 'apple', tag: 'minimal · premium · silent',
-    palette: ['#f5f5f7','#86868b','#0071e3'],
-    preview: {
-      bg: 'linear-gradient(135deg,#141414,#1d1d1f)',
-      text: 'stencil',
-      textStyle: { fontFamily: '-apple-system, "SF Pro Display", system-ui', fontWeight: 200, fontSize: 24, color: '#f5f5f7', letterSpacing: '6px' },
-      accent: '#f5f5f7',
-    },
-  },
-  {
-    id: 'nike', name: 'nike', tag: 'raw · bold · athletic',
-    palette: ['#fa5a28','#ffffff','#111111'],
-    preview: {
-      bg: 'linear-gradient(135deg,#0a0a0a,#1a0000)',
-      text: 'stencil',
-      textStyle: { fontFamily: 'var(--font-sans), Inter, sans-serif', fontWeight: 900, fontSize: 28, color: '#ffffff', letterSpacing: '-2px', textTransform: 'uppercase' as const },
-      accent: '#fa5a28',
-    },
-  },
-  {
-    id: 'glossier', name: 'glossier', tag: 'soft · warm · lifestyle',
-    palette: ['#ffb3c1','#fde8eb','#c77dff'],
-    preview: {
-      bg: 'linear-gradient(135deg,#1a0a10,#200a18)',
-      text: 'stencil',
-      textStyle: { fontFamily: 'var(--font-display), serif', fontStyle: 'italic' as const, fontWeight: 400, fontSize: 28, color: '#ffb3c1', letterSpacing: '1px' },
-      accent: '#ffb3c1',
-    },
-  },
-  {
-    id: 'notion', name: 'notion', tag: 'structured · calm · editorial',
-    palette: ['#ffffff','#2eaadc','#e9e5e3'],
-    preview: {
-      bg: 'linear-gradient(135deg,#111111,#191919)',
-      text: 'stencil',
-      textStyle: { fontFamily: 'var(--font-display), Georgia, serif', fontWeight: 400, fontSize: 28, color: '#ffffff', letterSpacing: '0px' },
-      accent: '#2eaadc',
-    },
-  },
-  {
-    id: 'supreme', name: 'supreme', tag: 'graphic · street · loud',
-    palette: ['#ff0000','#ffffff','#000000'],
-    preview: {
-      bg: 'linear-gradient(135deg,#0a0a0a,#1a0000)',
-      text: 'stencil',
-      textStyle: { fontFamily: 'var(--font-sans), Impact, sans-serif', fontWeight: 900, fontSize: 24, color: '#ff0000', letterSpacing: '6px', textTransform: 'uppercase' as const },
-      accent: '#ff0000',
-    },
-  },
-];
-
-const INFLUENCERS = [
-  {
-    name: 'maya chen', handle: '@mayatech', niche: 'tech & lifestyle',
-    followers: '2.3m', match: 97, hue: '#c4b5fd',
-    avatar: { initials: 'MC', bg: 'linear-gradient(135deg,#7c3aed,#c4b5fd)' },
-    phone: '+1 (323) 555-0192', ig: 'mayatech', email: 'maya@mayatech.co',
-    bio: 'tech & lifestyle creator, nyc. viral content for forward-thinking brands.',
-  },
-  {
-    name: 'jaden volt', handle: '@jadenvolt', niche: 'streetwear',
-    followers: '890k', match: 94, hue: '#7dd3fc',
-    avatar: { initials: 'JV', bg: 'linear-gradient(135deg,#0369a1,#7dd3fc)' },
-    phone: '+1 (213) 555-0847', ig: 'jadenvolt', email: 'jaden@volt.studio',
-    bio: 'drops, fits, culture. streetwear since 2018. la based.',
-  },
-  {
-    name: 'sofia reyes', handle: '@sofiabeauty', niche: 'beauty & wellness',
-    followers: '1.1m', match: 91, hue: '#f9a8d4',
-    avatar: { initials: 'SR', bg: 'linear-gradient(135deg,#be185d,#f9a8d4)' },
-    phone: '+1 (786) 555-0341', ig: 'sofiabeauty', email: 'sofia@sofiareyes.com',
-    bio: 'clean beauty, real reviews. 1.1m community. miami & everywhere.',
-  },
-  {
-    name: 'luca torres', handle: '@lucacreates', niche: 'creative / art',
-    followers: '540k', match: 88, hue: '#fde68a',
-    avatar: { initials: 'LT', bg: 'linear-gradient(135deg,#b45309,#fde68a)' },
-    phone: '+1 (512) 555-0628', ig: 'lucacreates', email: 'luca@lucatorres.art',
-    bio: 'visual artist, creative director. brand collabs that feel like art.',
-  },
-];
-
-const POSTS = [
-  { platform: 'x', icon: 'X', text: "we didn't reinvent the category. we erased it. introducing aurora studio — link in bio." },
-  { platform: 'ig', icon: '◎', text: "some things you feel before you see them. this is one of those things. pre-order open now." },
-  { platform: 'tt', icon: '♪', text: "pov: you find the brand that actually gets you. #aesthetic #brand #launch" },
-];
-
-const MERCH = [
-  { name: 'premium tee', sub: 'heavyweight 300gsm', icon: '👕' },
-  { name: 'hoodie',      sub: 'oversized, embroidered', icon: '🧥' },
-  { name: 'tote bag',    sub: 'canvas, screen print', icon: '🛍' },
-  { name: 'enamel pin',  sub: 'hard enamel, 3-pack', icon: '📌' },
-];
-
-// ─── shared components ────────────────────────────────────────────────────────
+// ─── shared micro-components ──────────────────────────────────────────────────
 
 function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
@@ -158,10 +54,14 @@ function ProgressBar({ current, onBack }: { current: Screen; onBack: (s: Screen)
   return (
     <div style={{ position: 'absolute', top: 60, left: 22, right: 22, zIndex: 40, display: 'flex', gap: 5 }}>
       {SCREENS.map((s, i) => {
-        const done = i < idx;
+        const done   = i < idx;
         const active = i === idx;
         return (
-          <div key={s} onClick={() => done && onBack(s)} style={{ flex: 1, height: 2, borderRadius: 99, background: active ? 'rgba(210,190,255,0.9)' : done ? 'rgba(210,190,255,0.45)' : 'rgba(255,255,255,0.1)', cursor: done ? 'pointer' : 'default', transition: 'background 0.3s' }}/>
+          <div
+            key={s}
+            onClick={() => done && onBack(s)}
+            style={{ flex: 1, height: 2, borderRadius: 99, background: active ? 'rgba(210,190,255,0.9)' : done ? 'rgba(210,190,255,0.45)' : 'rgba(255,255,255,0.1)', cursor: done ? 'pointer' : 'default', transition: 'background 0.3s' }}
+          />
         );
       })}
     </div>
@@ -186,153 +86,203 @@ function HomeIndicator() {
   return <div style={{ position: 'absolute', bottom: 8, left: '50%', transform: 'translateX(-50%)', width: 130, height: 4, borderRadius: 2, background: 'rgba(255,255,255,0.18)' }}/>;
 }
 
-// ─── screen 1 — upload ────────────────────────────────────────────────────────
+// ─── screen 1 — input ─────────────────────────────────────────────────────────
 
-function UploadScreen({ onNext }: { onNext: () => void }) {
-  const [hasFile, setHasFile] = useState(false);
-  const [dragging, setDragging] = useState(false);
-  const fileRef = useRef<HTMLInputElement>(null);
+function InputScreen({ onNext }: { onNext: (jobId: string) => void }) {
+  const [handle, setHandle]     = useState('');
+  const [idea, setIdea]         = useState('');
+  const [platform, setPlatform] = useState<'instagram' | 'x'>('instagram');
+  const [loading, setLoading]   = useState(false);
+  const [error, setError]       = useState<string | null>(null);
 
-  const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault();
-    setDragging(false);
-    if (e.dataTransfer.files.length > 0) setHasFile(true);
+  const submit = async () => {
+    if (!handle.trim() || !idea.trim()) return;
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch(`${API}/jobs`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          handle: handle.replace(/^@/, ''),
+          product_idea: idea,
+          platform,
+        }),
+      });
+      if (!res.ok) throw new Error(`${res.status}`);
+      const { job_id } = await res.json();
+      onNext(job_id);
+    } catch {
+      setError('Could not start — is the API running?');
+      setLoading(false);
+    }
   };
+
+  const canSubmit = handle.trim() && idea.trim() && !loading;
 
   return (
     <div className="screen-enter" style={{ height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '0 26px', paddingTop: 20 }}>
-      <div style={{ textAlign: 'center', marginBottom: 32 }}>
+
+      <div style={{ textAlign: 'center', marginBottom: 28 }}>
         <p style={{ fontSize: 13, color: 'rgba(240,238,244,0.4)', fontWeight: 400, marginBottom: 4 }}>grow with</p>
         <h1 style={{ fontFamily: 'var(--font-display), serif', fontStyle: 'italic', fontSize: 42, letterSpacing: '-0.5px', lineHeight: 1, background: 'linear-gradient(135deg,#fff 0%,#d2beff 60%,#f9a8d4 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>stencil</h1>
       </div>
-      <input ref={fileRef} type="file" style={{ display: 'none' }} onChange={() => setHasFile(true)} accept="image/*,.pdf"/>
-      <div
-        onClick={() => !hasFile && fileRef.current?.click()}
-        onDragOver={e => { e.preventDefault(); setDragging(true); }}
-        onDragLeave={() => setDragging(false)}
-        onDrop={handleDrop}
-        style={{ width: '100%', borderRadius: 20, border: hasFile ? '1.5px solid rgba(210,190,255,0.5)' : dragging ? '1.5px dashed rgba(210,190,255,0.5)' : '1.5px dashed rgba(255,255,255,0.12)', background: hasFile ? 'rgba(210,190,255,0.07)' : dragging ? 'rgba(210,190,255,0.05)' : 'rgba(255,255,255,0.02)', padding: '32px 24px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12, cursor: hasFile ? 'default' : 'pointer', transition: 'all 0.2s' }}
-      >
-        {hasFile ? (
-          <>
-            <div style={{ width: 52, height: 52, borderRadius: 18, background: 'rgba(210,190,255,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <Icon name="check" size={24} color="rgba(210,190,255,0.9)"/>
-            </div>
-            <p style={{ fontSize: 14, color: 'rgba(210,190,255,0.9)', fontWeight: 500 }}>uploaded</p>
-            <button onClick={() => setHasFile(false)} style={{ fontSize: 11, color: 'rgba(240,238,244,0.35)', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>remove</button>
-          </>
-        ) : (
-          <>
-            <div style={{ width: 52, height: 52, borderRadius: 18, background: 'rgba(255,255,255,0.04)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <Icon name="upload" size={22} color="rgba(255,255,255,0.3)"/>
-            </div>
-            <div style={{ textAlign: 'center' }}>
-              <p style={{ fontSize: 14, color: '#f0eef4', fontWeight: 500, marginBottom: 4 }}>drop your brand idea</p>
-              <p style={{ fontSize: 12, color: 'rgba(240,238,244,0.35)', lineHeight: 1.5 }}>logo, screenshot, product photo<br/>or anything that represents you</p>
-            </div>
-            <p style={{ fontSize: 10, color: 'rgba(240,238,244,0.2)', letterSpacing: '0.3px' }}>PNG · JPG · PDF</p>
-          </>
-        )}
-      </div>
-      <button className="btn-primary" disabled={!hasFile} onClick={onNext} style={{ marginTop: 20, opacity: hasFile ? 1 : 0.3, cursor: hasFile ? 'pointer' : 'not-allowed', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
-        continue <Icon name="arrow" size={13} color="#0c0b0f"/>
-      </button>
-    </div>
-  );
-}
 
-// ─── screen 2 — style picker ──────────────────────────────────────────────────
+      <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: 12 }}>
 
-function StyleScreen({ onNext }: { onNext: (style: string) => void }) {
-  const [selected, setSelected] = useState<string | null>(null);
-  return (
-    <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-      <div style={{ padding: '72px 22px 12px', flexShrink: 0 }}>
-        <p style={{ fontSize: 10, color: 'rgba(240,238,244,0.35)', fontWeight: 600, letterSpacing: '0.5px', marginBottom: 4 }}>step 2</p>
-        <h2 style={{ fontFamily: 'var(--font-display), serif', fontStyle: 'italic', fontSize: 24, letterSpacing: '-0.3px', color: '#f0eef4', marginBottom: 4 }}>choose your style</h2>
-        <p style={{ fontSize: 12, color: 'rgba(240,238,244,0.35)', lineHeight: 1.5 }}>we'll apply this aesthetic to your brand while keeping it unmistakably stencil.</p>
-      </div>
-      <div style={{ flex: 1, overflowY: 'auto', padding: '0 22px 80px' }}>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 9, paddingTop: 4 }}>
-          {STYLES.map(s => {
-            const isSelected = selected === s.id;
-            return (
-              <div key={s.id} onClick={() => setSelected(s.id)} style={{ borderRadius: 16, overflow: 'hidden', cursor: 'pointer', border: isSelected ? '1.5px solid rgba(210,190,255,0.6)' : '1px solid rgba(255,255,255,0.07)', transition: 'all 0.15s', boxShadow: isSelected ? '0 0 0 3px rgba(210,190,255,0.1)' : 'none' }}>
-                <div style={{ background: s.preview.bg, height: 72, display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative', overflow: 'hidden' }}>
-                  <div style={{ position: 'absolute', inset: 0, opacity: 0.06, backgroundImage: 'repeating-linear-gradient(0deg,rgba(255,255,255,0.3) 0,rgba(255,255,255,0.3) 1px,transparent 1px,transparent 8px)' }}/>
-                  <span style={s.preview.textStyle as React.CSSProperties}>{s.preview.text}</span>
-                  {isSelected && <div style={{ position: 'absolute', top: 6, right: 6, width: 16, height: 16, borderRadius: '50%', background: 'rgba(210,190,255,0.9)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Icon name="check" size={9} color="#0c0b0f"/></div>}
-                </div>
-                <div style={{ padding: '9px 10px 10px', background: isSelected ? 'rgba(210,190,255,0.06)' : 'rgba(255,255,255,0.02)' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 4 }}>
-                    {s.palette.map((c, i) => <div key={i} style={{ width: 8, height: 8, borderRadius: '50%', background: c }}/>)}
-                  </div>
-                  <p style={{ fontSize: 12, fontWeight: 600, color: isSelected ? 'rgba(210,190,255,0.9)' : '#f0eef4', marginBottom: 2 }}>{s.name}</p>
-                  <p style={{ fontSize: 9, color: 'rgba(240,238,244,0.35)', lineHeight: 1.3 }}>{s.tag}</p>
-                </div>
-              </div>
-            );
-          })}
+        {/* handle */}
+        <div>
+          <p style={{ fontSize: 9, fontWeight: 700, letterSpacing: '1px', textTransform: 'uppercase', color: 'rgba(240,238,244,0.3)', marginBottom: 6 }}>your handle</p>
+          <input
+            className="input-pill"
+            placeholder="@yourhandle"
+            value={handle}
+            onChange={e => setHandle(e.target.value)}
+            disabled={loading}
+          />
         </div>
-      </div>
-      <div style={{ position: 'absolute', bottom: 24, left: 22, right: 22 }}>
-        <button className="btn-primary" disabled={!selected} onClick={() => selected && onNext(selected)} style={{ opacity: selected ? 1 : 0.3, cursor: selected ? 'pointer' : 'not-allowed', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
-          generate my brand kit <Icon name="sparkle" size={13} color="#0c0b0f"/>
+
+        {/* product idea */}
+        <div>
+          <p style={{ fontSize: 9, fontWeight: 700, letterSpacing: '1px', textTransform: 'uppercase', color: 'rgba(240,238,244,0.3)', marginBottom: 6 }}>product idea</p>
+          <textarea
+            className="input-pill"
+            placeholder="What are you building?"
+            value={idea}
+            onChange={e => setIdea(e.target.value)}
+            disabled={loading}
+            rows={3}
+            style={{ resize: 'none' }}
+          />
+        </div>
+
+        {/* platform toggle */}
+        <div>
+          <p style={{ fontSize: 9, fontWeight: 700, letterSpacing: '1px', textTransform: 'uppercase', color: 'rgba(240,238,244,0.3)', marginBottom: 6 }}>platform</p>
+          <div style={{ display: 'flex', gap: 7 }}>
+            {(['instagram', 'x'] as const).map(p => (
+              <button
+                key={p}
+                onClick={() => setPlatform(p)}
+                className={`chip${platform === p ? ' selected' : ''}`}
+                style={{ flex: 1, justifyContent: 'center' }}
+              >
+                {p === 'instagram' ? '◎ instagram' : '𝕏 x / twitter'}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {error && (
+          <p style={{ fontSize: 11, color: 'rgba(255,120,120,0.8)', textAlign: 'center' }}>{error}</p>
+        )}
+
+        <button
+          className="btn-primary"
+          disabled={!canSubmit}
+          onClick={submit}
+          style={{ marginTop: 4, opacity: canSubmit ? 1 : 0.3, cursor: canSubmit ? 'pointer' : 'not-allowed', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}
+        >
+          {loading ? (
+            <>
+              <span className="dot-1" style={{ width: 4, height: 4, borderRadius: '50%', background: '#0c0b0f', display: 'inline-block' }}/>
+              <span className="dot-2" style={{ width: 4, height: 4, borderRadius: '50%', background: '#0c0b0f', display: 'inline-block' }}/>
+              <span className="dot-3" style={{ width: 4, height: 4, borderRadius: '50%', background: '#0c0b0f', display: 'inline-block' }}/>
+            </>
+          ) : (
+            <>generate my brand kit <Icon name="sparkle" size={13} color="#0c0b0f"/></>
+          )}
         </button>
       </div>
     </div>
   );
 }
 
-// ─── screen 3 — generating ────────────────────────────────────────────────────
+// ─── screen 2 — generating (polls real API) ───────────────────────────────────
 
-function GeneratingScreen({ onNext }: { onNext: () => void }) {
-  const steps = ['reading your upload…','building logo system…','generating palette…','matching creators…','writing social copy…'];
-  const [idx, setIdx] = useState(0);
+const STATUS_STEPS: Record<string, { label: string; idx: number }> = {
+  queued:       { label: 'queued…',                idx: 0 },
+  scraping:     { label: 'reading your profile…',  idx: 1 },
+  synthesizing: { label: 'building your persona…', idx: 2 },
+  generating:   { label: 'generating brand kit…',  idx: 3 },
+  matching:     { label: 'matching agencies…',      idx: 4 },
+  exporting:    { label: 'finishing up…',           idx: 5 },
+  done:         { label: 'done!',                   idx: 6 },
+};
+const TOTAL_STEPS = 6;
+
+function GeneratingScreen({ jobId, onDone, onError }: {
+  jobId: string;
+  onDone: (result: BrandResult) => void;
+  onError: () => void;
+}) {
+  const [status, setStatus] = useState('queued');
+  const [errMsg, setErrMsg] = useState<string | null>(null);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
   useEffect(() => {
-    let i = 0;
-    const t = setInterval(() => {
-      i++;
-      if (i < steps.length) setIdx(i);
-      else { clearInterval(t); setTimeout(onNext, 500); }
-    }, 700);
-    return () => clearInterval(t);
-  }, []);
+    const poll = async () => {
+      try {
+        const res = await fetch(`${API}/jobs/${jobId}`);
+        if (!res.ok) return;
+        const job = await res.json();
+        setStatus(job.status);
+        if (job.status === 'done') {
+          if (timerRef.current) clearInterval(timerRef.current);
+          setTimeout(() => onDone(job.result), 500);
+        } else if (job.status === 'error') {
+          if (timerRef.current) clearInterval(timerRef.current);
+          setErrMsg(job.error_message ?? 'Something went wrong');
+        }
+      } catch { /* network hiccup — keep polling */ }
+    };
+
+    poll();
+    timerRef.current = setInterval(poll, 1500);
+    return () => { if (timerRef.current) clearInterval(timerRef.current); };
+  }, [jobId]);
+
+  const step     = STATUS_STEPS[status] ?? STATUS_STEPS.queued;
+  const progress = (step.idx / TOTAL_STEPS) * 100;
+
+  if (errMsg) {
+    return (
+      <div className="screen-enter" style={{ height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 36 }}>
+        <p style={{ fontSize: 13, color: 'rgba(255,120,120,0.8)', textAlign: 'center', marginBottom: 20 }}>{errMsg}</p>
+        <button className="btn-ghost" onClick={onError}>try again</button>
+      </div>
+    );
+  }
+
   return (
     <div className="screen-enter" style={{ height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 36 }}>
       <div style={{ width: 80, height: 80, borderRadius: 26, background: 'rgba(210,190,255,0.06)', border: '1px solid rgba(210,190,255,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 24, animation: 'pulse-glow 1.6s ease-in-out infinite' }}>
         <LogoMark size={32} color="rgba(210,190,255,0.8)"/>
       </div>
       <h2 style={{ fontFamily: 'var(--font-display), serif', fontStyle: 'italic', fontSize: 22, textAlign: 'center', marginBottom: 8, color: '#f0eef4' }}>building your brand</h2>
-      <p style={{ fontSize: 12, color: 'rgba(240,238,244,0.4)', textAlign: 'center', marginBottom: 24, height: 18 }}>{steps[idx]}</p>
+      <p style={{ fontSize: 12, color: 'rgba(240,238,244,0.4)', textAlign: 'center', marginBottom: 24, height: 18 }}>{step.label}</p>
       <div style={{ display: 'flex', gap: 5, marginBottom: 20 }}>
-        {steps.map((_, i) => <div key={i} style={{ height: 2, borderRadius: 99, width: i <= idx ? 16 : 5, background: i < idx ? 'rgba(210,190,255,0.6)' : i === idx ? 'rgba(210,190,255,1)' : 'rgba(255,255,255,0.1)', transition: 'all 0.4s' }}/>)}
+        {Array.from({ length: TOTAL_STEPS }).map((_, i) => (
+          <div key={i} style={{ height: 2, borderRadius: 99, width: i <= step.idx ? 16 : 5, background: i < step.idx ? 'rgba(210,190,255,0.6)' : i === step.idx ? 'rgba(210,190,255,1)' : 'rgba(255,255,255,0.1)', transition: 'all 0.4s' }}/>
+        ))}
       </div>
       <div style={{ width: '100%', height: 2, background: 'rgba(255,255,255,0.06)', borderRadius: 1, overflow: 'hidden' }}>
-        <div style={{ height: '100%', borderRadius: 1, background: 'rgba(210,190,255,0.75)', width: `${((idx + 1) / steps.length) * 100}%`, transition: 'width 0.6s cubic-bezier(0.4,0,0.2,1)' }}/>
+        <div style={{ height: '100%', borderRadius: 1, background: 'rgba(210,190,255,0.75)', width: `${progress}%`, transition: 'width 0.6s cubic-bezier(0.4,0,0.2,1)' }}/>
       </div>
     </div>
   );
 }
 
-// ─── screen 4 — results (single scroll) ──────────────────────────────────────
+// ─── screen 3 — results (real BrandResult) ────────────────────────────────────
 
-function CreatorAvatar({ inf }: { inf: typeof INFLUENCERS[0] }) {
-  return (
-    <div style={{ width: 56, height: 56, borderRadius: '50%', background: inf.avatar.bg, border: `2px solid ${inf.hue}55`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, position: 'relative' }}>
-      <span style={{ fontSize: 16, fontWeight: 700, color: '#fff', fontFamily: 'var(--font-display), serif', fontStyle: 'italic' }}>{inf.avatar.initials}</span>
-      <div style={{ position: 'absolute', bottom: -1, right: -1, width: 17, height: 17, borderRadius: '50%', background: '#18161c', border: `1.5px solid ${inf.hue}`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <span style={{ fontSize: 8, fontWeight: 800, color: inf.hue }}>{inf.match}</span>
-      </div>
-    </div>
-  );
-}
-
-function ResultsScreen({ style, onReset }: { style: string; onReset: () => void }) {
+function ResultsScreen({ result, onReset }: { result: BrandResult; onReset: () => void }) {
   const [copied, setCopied] = useState<string | null>(null);
-  const palette = PALETTE_SETS[style] ?? PALETTE_SETS.lovable;
-  const colorNames = COLOR_NAMES[style] ?? COLOR_NAMES.lovable;
-  const styleDef = STYLES.find(s => s.id === style) ?? STYLES[0];
+  const { brand_assets: brand, persona, agency_matches } = result;
+
+  const accentColor =
+    brand.palette.find(c => c.role === 'accent')?.hex ??
+    brand.palette.find(c => c.role === 'primary')?.hex ??
+    '#c4b5fd';
 
   const copy = (key: string, text: string) => {
     navigator.clipboard.writeText(text).catch(() => {});
@@ -341,27 +291,37 @@ function ResultsScreen({ style, onReset }: { style: string; onReset: () => void 
   };
 
   const CopyBtn = ({ k, text }: { k: string; text: string }) => (
-    <button onClick={() => copy(k, text)} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '4px 8px', borderRadius: 6, background: copied === k ? 'rgba(210,190,255,0.15)' : 'rgba(255,255,255,0.05)', border: `1px solid ${copied === k ? 'rgba(210,190,255,0.3)' : 'rgba(255,255,255,0.08)'}`, color: copied === k ? 'rgba(210,190,255,0.9)' : 'rgba(240,238,244,0.4)', fontSize: 10, cursor: 'pointer', fontFamily: 'inherit', transition: 'all 0.2s', whiteSpace: 'nowrap' as const }}>
+    <button
+      onClick={() => copy(k, text)}
+      style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '4px 8px', borderRadius: 6, background: copied === k ? 'rgba(210,190,255,0.15)' : 'rgba(255,255,255,0.05)', border: `1px solid ${copied === k ? 'rgba(210,190,255,0.3)' : 'rgba(255,255,255,0.08)'}`, color: copied === k ? 'rgba(210,190,255,0.9)' : 'rgba(240,238,244,0.4)', fontSize: 10, cursor: 'pointer', fontFamily: 'inherit', transition: 'all 0.2s', whiteSpace: 'nowrap' as const }}
+    >
       <Icon name={copied === k ? 'check' : 'copy'} size={9} color={copied === k ? 'rgba(210,190,255,0.9)' : 'rgba(255,255,255,0.3)'}/> {copied === k ? 'copied!' : 'copy'}
     </button>
   );
 
+  const hues = [accentColor, 'rgba(125,211,252,0.9)', 'rgba(249,168,212,0.9)'];
+
   return (
     <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
 
-      {/* ── sticky hero header ── */}
+      {/* ── hero header ── */}
       <div style={{ flexShrink: 0, position: 'relative', zIndex: 5 }}>
-        <div style={{ background: styleDef.preview.bg, padding: '72px 22px 18px', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+        <div style={{ background: 'linear-gradient(135deg,#1a1025,#0f0e13)', padding: '72px 22px 18px', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
           <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between' }}>
             <div>
               <p style={{ fontSize: 9, color: 'rgba(255,255,255,0.4)', fontWeight: 600, letterSpacing: '1px', marginBottom: 6 }}>YOUR BRAND KIT</p>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
-                <div style={{ width: 32, height: 32, borderRadius: 10, background: 'rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <LogoMark size={16} color="rgba(255,255,255,0.85)"/>
+                <div style={{ width: 32, height: 32, borderRadius: 10, background: `${accentColor}22`, border: `1px solid ${accentColor}44`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  {brand.logo_url ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={brand.logo_url} alt="logo" style={{ width: 20, height: 20, objectFit: 'contain' }}/>
+                  ) : (
+                    <LogoMark size={16} color={accentColor}/>
+                  )}
                 </div>
-                <span style={{ ...styleDef.preview.textStyle as React.CSSProperties, fontSize: 26 }}>aurora studio</span>
+                <span style={{ fontFamily: 'var(--font-display), serif', fontStyle: 'italic', fontSize: 26, color: '#f0eef4', letterSpacing: '-0.5px' }}>{brand.brand_name}</span>
               </div>
-              <p style={{ fontSize: 10, color: 'rgba(255,255,255,0.45)' }}>{styleDef.tag}</p>
+              <p style={{ fontSize: 10, color: 'rgba(255,255,255,0.45)' }}>{brand.tagline}</p>
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6, alignItems: 'flex-end' }}>
               <span style={{ fontSize: 9, color: 'rgba(210,190,255,0.9)', background: 'rgba(210,190,255,0.15)', padding: '3px 8px', borderRadius: 5, fontWeight: 700, letterSpacing: '0.8px' }}>LIVE</span>
@@ -376,38 +336,40 @@ function ResultsScreen({ style, onReset }: { style: string; onReset: () => void 
       {/* ── scrollable content ── */}
       <div style={{ flex: 1, overflowY: 'auto', scrollbarWidth: 'none' as const }}>
 
-        {/* logo variants */}
+        {/* persona card */}
         <div style={{ padding: '18px 22px 0' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-            <SectionLabel>logo system</SectionLabel>
-            <DownloadChip label="SVG pack"/>
-          </div>
-          <div style={{ display: 'flex', gap: 8, marginBottom: 18 }}>
-            {[
-              { bg: styleDef.preview.bg, logoColor: 'rgba(255,255,255,0.85)', label: 'primary', border: 'none' },
-              { bg: 'rgba(255,255,255,0.04)', logoColor: 'rgba(255,255,255,0.55)', label: 'mono', border: '1px solid rgba(255,255,255,0.08)' },
-              { bg: '#f0eef4', logoColor: '#1a1820', label: 'light', border: 'none' },
-            ].map((v, i) => (
-              <div key={i} style={{ flex: 1, height: 68, borderRadius: 12, background: v.bg, border: v.border, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
-                <LogoMark size={i === 0 ? 20 : 16} color={v.logoColor}/>
-                <span style={{ fontFamily: 'var(--font-display), serif', fontStyle: 'italic', fontSize: 9, color: v.logoColor, opacity: 0.7, letterSpacing: '0.5px' }}>stencil</span>
+          <SectionLabel>your audience persona</SectionLabel>
+          <div style={{ background: 'rgba(255,255,255,0.025)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 16, padding: 14, marginBottom: 18 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
+              <div style={{ width: 40, height: 40, borderRadius: '50%', background: `${accentColor}25`, border: `1.5px solid ${accentColor}50`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <span style={{ fontSize: 16, fontWeight: 700, color: accentColor, fontFamily: 'var(--font-display), serif', fontStyle: 'italic' }}>{persona.name[0]}</span>
               </div>
-            ))}
+              <div>
+                <p style={{ fontSize: 14, fontWeight: 600, color: '#f0eef4' }}>{persona.name}</p>
+                <p style={{ fontSize: 10, color: 'rgba(240,238,244,0.4)' }}>{persona.age_range}</p>
+              </div>
+            </div>
+            <p style={{ fontSize: 11, color: 'rgba(240,238,244,0.55)', lineHeight: 1.6, marginBottom: 10, fontStyle: 'italic' }}>&ldquo;{persona.summary}&rdquo;</p>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
+              {persona.aesthetic_keywords.map((k, i) => (
+                <span key={i} style={{ fontSize: 9, padding: '3px 8px', borderRadius: 20, background: `${accentColor}18`, border: `1px solid ${accentColor}35`, color: accentColor }}>{k}</span>
+              ))}
+            </div>
           </div>
         </div>
 
-        {/* color palette */}
+        {/* brand palette */}
         <div style={{ padding: '0 22px', marginBottom: 18 }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
             <SectionLabel>brand palette</SectionLabel>
             <DownloadChip label=".ase file"/>
           </div>
           <div style={{ display: 'flex', gap: 5 }}>
-            {palette.map((c, i) => (
+            {brand.palette.map((c, i) => (
               <div key={i} style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 5 }}>
                 <div
-                  onClick={() => copy(`color-${i}`, c)}
-                  style={{ width: '100%', height: 52, borderRadius: 10, background: c, boxShadow: '0 4px 12px rgba(0,0,0,0.4)', cursor: 'pointer', position: 'relative', overflow: 'hidden', transition: 'transform 0.15s' }}
+                  onClick={() => copy(`color-${i}`, c.hex)}
+                  style={{ width: '100%', height: 52, borderRadius: 10, background: c.hex, boxShadow: '0 4px 12px rgba(0,0,0,0.4)', cursor: 'pointer', position: 'relative', overflow: 'hidden' }}
                 >
                   {copied === `color-${i}` && (
                     <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.3)' }}>
@@ -415,101 +377,87 @@ function ResultsScreen({ style, onReset }: { style: string; onReset: () => void 
                     </div>
                   )}
                 </div>
-                <p style={{ fontSize: 7.5, color: 'rgba(240,238,244,0.45)', fontFamily: 'monospace', textAlign: 'center', lineHeight: 1.3 }}>{colorNames[i]}<br/>{c}</p>
+                <p style={{ fontSize: 7.5, color: 'rgba(240,238,244,0.45)', fontFamily: 'monospace', textAlign: 'center', lineHeight: 1.3 }}>{c.name}<br/>{c.hex}</p>
               </div>
             ))}
           </div>
           <p style={{ fontSize: 9, color: 'rgba(240,238,244,0.25)', marginTop: 6, textAlign: 'center' }}>tap a swatch to copy hex</p>
         </div>
 
-        {/* merch mockups */}
+        {/* agency matches */}
         <div style={{ padding: '0 22px', marginBottom: 18 }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-            <SectionLabel>merch line</SectionLabel>
-            <button style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '4px 9px', borderRadius: 7, background: 'rgba(210,190,255,0.1)', border: '1px solid rgba(210,190,255,0.2)', color: 'rgba(210,190,255,0.8)', fontSize: 10, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
-              order samples
-            </button>
-          </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-            {MERCH.map((m, i) => (
-              <div key={i} style={{ borderRadius: 14, overflow: 'hidden', border: '1px solid rgba(255,255,255,0.07)', background: 'rgba(255,255,255,0.02)' }}>
-                <div style={{ height: 80, background: `linear-gradient(135deg,${palette[i % palette.length]}22,${palette[(i+1) % palette.length]}11)`, display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-                  <div style={{ position: 'absolute', inset: 0, backgroundImage: 'repeating-linear-gradient(45deg,rgba(255,255,255,0.015),rgba(255,255,255,0.015) 2px,transparent 2px,transparent 10px)' }}/>
-                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, zIndex: 1 }}>
-                    <span style={{ fontSize: 28, lineHeight: 1 }}>{m.icon}</span>
-                    <div style={{ padding: '2px 6px', borderRadius: 4, background: 'rgba(255,255,255,0.08)', backdropFilter: 'blur(4px)' }}>
-                      <span style={{ fontFamily: 'var(--font-display), serif', fontStyle: 'italic', fontSize: 8, color: 'rgba(255,255,255,0.7)' }}>stencil</span>
-                    </div>
-                  </div>
-                </div>
-                <div style={{ padding: '8px 10px 10px' }}>
-                  <p style={{ fontSize: 11, fontWeight: 600, color: '#f0eef4', marginBottom: 2 }}>{m.name}</p>
-                  <p style={{ fontSize: 9, color: 'rgba(240,238,244,0.35)' }}>{m.sub}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* creators */}
-        <div style={{ padding: '0 22px', marginBottom: 18 }}>
-          <SectionLabel>matched creators</SectionLabel>
+          <SectionLabel>matched agencies</SectionLabel>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            {INFLUENCERS.map((inf, i) => (
-              <div key={i} style={{ borderRadius: 16, background: 'rgba(255,255,255,0.025)', border: '1px solid rgba(255,255,255,0.07)', overflow: 'hidden' }}>
-                {/* top row: avatar + info */}
-                <div style={{ display: 'flex', gap: 12, alignItems: 'center', padding: '12px 14px 10px' }}>
-                  <CreatorAvatar inf={inf}/>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 2 }}>
-                      <p style={{ fontSize: 13, fontWeight: 600, color: '#f0eef4' }}>{inf.name}</p>
-                      <span style={{ fontSize: 10, fontWeight: 700, color: inf.hue, background: `${inf.hue}18`, padding: '2px 6px', borderRadius: 5 }}>{inf.match}%</span>
+            {agency_matches.slice(0, 3).map((a, i) => {
+              const hue = hues[i] ?? accentColor;
+              return (
+                <div key={a.agency_id} style={{ borderRadius: 16, background: 'rgba(255,255,255,0.025)', border: '1px solid rgba(255,255,255,0.07)', overflow: 'hidden' }}>
+                  <div style={{ display: 'flex', gap: 12, alignItems: 'center', padding: '12px 14px 8px' }}>
+                    <div style={{ width: 40, height: 40, borderRadius: 12, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                      <Icon name="users" size={15} color={hue}/>
                     </div>
-                    <p style={{ fontSize: 11, color: 'rgba(240,238,244,0.4)', marginBottom: 1 }}>{inf.handle} · {inf.followers} followers</p>
-                    <p style={{ fontSize: 10, color: 'rgba(240,238,244,0.3)', lineHeight: 1.4 }}>{inf.niche}</p>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 2 }}>
+                        <p style={{ fontSize: 13, fontWeight: 600, color: '#f0eef4' }}>{a.name}</p>
+                        <span style={{ fontSize: 10, fontWeight: 700, color: hue, background: 'rgba(255,255,255,0.06)', padding: '2px 6px', borderRadius: 5 }}>{Math.round(a.match_score)}%</span>
+                      </div>
+                      <p style={{ fontSize: 10, color: 'rgba(240,238,244,0.35)', lineHeight: 1.4, fontStyle: 'italic' }}>{a.why}</p>
+                    </div>
+                  </div>
+                  <div style={{ padding: '0 14px 10px', display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                    {a.specialty_tags.slice(0, 3).map((t, j) => (
+                      <span key={j} style={{ fontSize: 9, padding: '2px 7px', borderRadius: 20, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', color: 'rgba(240,238,244,0.4)' }}>{t}</span>
+                    ))}
                   </div>
                 </div>
-                {/* bio */}
-                <div style={{ padding: '0 14px 10px' }}>
-                  <p style={{ fontSize: 10, color: 'rgba(240,238,244,0.35)', lineHeight: 1.5, fontStyle: 'italic' }}>&ldquo;{inf.bio}&rdquo;</p>
-                </div>
-                {/* outbound actions */}
-                <div style={{ display: 'flex', gap: 0, borderTop: '1px solid rgba(255,255,255,0.05)' }}>
-                  {[
-                    { label: 'text now', icon: 'zap' as const, href: `sms:${inf.phone}`, accent: inf.hue },
-                    { label: 'instagram', icon: 'link' as const, href: `https://instagram.com/${inf.ig}`, accent: 'rgba(255,255,255,0.5)' },
-                    { label: 'email', icon: 'arrow' as const, href: `mailto:${inf.email}`, accent: 'rgba(255,255,255,0.5)' },
-                  ].map((a, j) => (
-                    <a key={j} href={a.href} target="_blank" rel="noreferrer" style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4, padding: '10px 4px', borderRight: j < 2 ? '1px solid rgba(255,255,255,0.05)' : 'none', textDecoration: 'none', color: j === 0 ? inf.hue : 'rgba(240,238,244,0.4)', fontSize: 10, fontWeight: j === 0 ? 600 : 400, background: 'transparent', cursor: 'pointer' }}>
-                      <Icon name={a.icon} size={9} color={j === 0 ? inf.hue : 'rgba(255,255,255,0.25)'}/> {a.label}
-                    </a>
-                  ))}
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
 
-        {/* social posts */}
+        {/* brand voice / social copy */}
         <div style={{ padding: '0 22px', marginBottom: 28 }}>
-          <SectionLabel>social copy</SectionLabel>
+          <SectionLabel>brand voice · social copy</SectionLabel>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {POSTS.map((p, i) => (
-              <div key={i} style={{ borderRadius: 14, background: 'rgba(255,255,255,0.025)', border: '1px solid rgba(255,255,255,0.07)', padding: '12px 14px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <span style={{ fontSize: 11, fontWeight: 800, color: 'rgba(240,238,244,0.5)', fontFamily: 'monospace' }}>{p.icon}</span>
-                    <span style={{ fontSize: 10, fontWeight: 600, color: 'rgba(240,238,244,0.4)', letterSpacing: '0.3px' }}>{p.platform}</span>
+            {brand.voice.examples.map((ex, i) => {
+              const icons     = ['X', '◎', '♪'];
+              const platforms = ['x', 'ig', 'tt'];
+              return (
+                <div key={i} style={{ borderRadius: 14, background: 'rgba(255,255,255,0.025)', border: '1px solid rgba(255,255,255,0.07)', padding: '12px 14px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <span style={{ fontSize: 11, fontWeight: 800, color: 'rgba(240,238,244,0.5)', fontFamily: 'monospace' }}>{icons[i % 3]}</span>
+                      <span style={{ fontSize: 10, fontWeight: 600, color: 'rgba(240,238,244,0.4)', letterSpacing: '0.3px' }}>{platforms[i % 3]}</span>
+                    </div>
+                    <CopyBtn k={`post-${i}`} text={ex}/>
                   </div>
-                  <CopyBtn k={`post-${i}`} text={p.text}/>
+                  <p style={{ fontSize: 12, color: '#f0eef4', lineHeight: 1.65 }}>{ex}</p>
                 </div>
-                <p style={{ fontSize: 12, color: '#f0eef4', lineHeight: 1.65 }}>{p.text}</p>
-              </div>
-            ))}
+              );
+            })}
           </div>
-          <button style={{ width: '100%', marginTop: 10, padding: '10px', borderRadius: 12, border: '1px solid rgba(210,190,255,0.2)', background: 'rgba(210,190,255,0.05)', color: 'rgba(210,190,255,0.7)', fontSize: 12, cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7 }}>
-            <Icon name="refresh" size={11} color="rgba(210,190,255,0.6)"/> regenerate all posts
-          </button>
+        </div>
+
+        {/* voice tone */}
+        <div style={{ padding: '0 22px', marginBottom: 18 }}>
+          <SectionLabel>voice tone</SectionLabel>
+          <div style={{ background: 'rgba(255,255,255,0.025)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 14, padding: '12px 14px' }}>
+            <p style={{ fontSize: 12, color: 'rgba(240,238,244,0.6)', fontStyle: 'italic', marginBottom: 10 }}>{brand.voice.tone}</p>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+              <div>
+                <p style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.8px', color: 'rgba(120,220,120,0.7)', marginBottom: 6 }}>DO</p>
+                {brand.voice.do.slice(0, 2).map((d, i) => (
+                  <p key={i} style={{ fontSize: 10, color: 'rgba(240,238,244,0.4)', lineHeight: 1.5, marginBottom: 4 }}>+ {d}</p>
+                ))}
+              </div>
+              <div>
+                <p style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.8px', color: 'rgba(255,100,100,0.7)', marginBottom: 6 }}>{"DON'T"}</p>
+                {brand.voice.dont.slice(0, 2).map((d, i) => (
+                  <p key={i} style={{ fontSize: 10, color: 'rgba(240,238,244,0.4)', lineHeight: 1.5, marginBottom: 4 }}>− {d}</p>
+                ))}
+              </div>
+            </div>
+          </div>
         </div>
 
         {/* start over */}
@@ -527,12 +475,14 @@ function ResultsScreen({ style, onReset }: { style: string; onReset: () => void 
 // ─── phone shell ──────────────────────────────────────────────────────────────
 
 export function PhoneApp() {
-  const [screen, setScreen] = useState<Screen>('upload');
-  const [style, setStyle] = useState('lovable');
+  const [screen, setScreen] = useState<Screen>('input');
+  const [jobId,  setJobId]  = useState<string | null>(null);
+  const [result, setResult] = useState<BrandResult | null>(null);
 
-  const goTo = (s: Screen, st?: string) => {
-    if (st) setStyle(st);
-    setScreen(s);
+  const reset = () => {
+    setScreen('input');
+    setJobId(null);
+    setResult(null);
   };
 
   return (
@@ -540,11 +490,22 @@ export function PhoneApp() {
       <div className="dynamic-island"/>
       <div className="phone-screen">
         <StatusBar/>
-        <ProgressBar current={screen} onBack={s => goTo(s)}/>
-        {screen === 'upload'     && <UploadScreen     onNext={() => goTo('style')}/>}
-        {screen === 'style'      && <StyleScreen      onNext={st => goTo('generating', st)}/>}
-        {screen === 'generating' && <GeneratingScreen onNext={() => goTo('results')}/>}
-        {screen === 'results'    && <ResultsScreen    style={style} onReset={() => goTo('upload')}/>}
+        <ProgressBar current={screen} onBack={s => { if (s === 'input') reset(); }}/>
+
+        {screen === 'input' && (
+          <InputScreen onNext={id => { setJobId(id); setScreen('generating'); }}/>
+        )}
+        {screen === 'generating' && jobId && (
+          <GeneratingScreen
+            jobId={jobId}
+            onDone={r => { setResult(r); setScreen('results'); }}
+            onError={reset}
+          />
+        )}
+        {screen === 'results' && result && (
+          <ResultsScreen result={result} onReset={reset}/>
+        )}
+
         <HomeIndicator/>
       </div>
     </div>
