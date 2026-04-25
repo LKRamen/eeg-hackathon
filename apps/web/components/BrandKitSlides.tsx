@@ -197,7 +197,7 @@ function Essence({ brand, palette }: { brand: BrandResult["brand_assets"]; palet
             <div style={{ borderLeft: `2px solid ${t.accent}`, paddingLeft: 20, display: "flex", flexDirection: "column", gap: 10 }}>
               {examples.slice(0, 3).map((ex: string, i: number) => (
                 <p key={i} style={{ fontFamily: displayFont, fontSize: 18, color: t.fg + "cc", margin: 0, fontStyle: "italic" }}>
-                  "{ex}"
+                   &ldquo;{ex}&rdquo;
                 </p>
               ))}
             </div>
